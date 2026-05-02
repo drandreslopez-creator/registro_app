@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import csv
 from collections import defaultdict
 from dataclasses import dataclass
@@ -5,8 +7,6 @@ from datetime import datetime, timedelta
 from html import escape
 from pathlib import Path
 import shutil
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
 from zoneinfo import ZoneInfo
 
 
@@ -49,6 +49,27 @@ TURNOS = {
         "fin": None,
     },
 }
+
+tk = None
+filedialog = None
+messagebox = None
+ttk = None
+
+
+def cargar_ui_escritorio():
+    global tk, filedialog, messagebox, ttk
+    if tk is not None:
+        return
+
+    import tkinter as tkinter_mod
+    from tkinter import filedialog as filedialog_mod
+    from tkinter import messagebox as messagebox_mod
+    from tkinter import ttk as ttk_mod
+
+    tk = tkinter_mod
+    filedialog = filedialog_mod
+    messagebox = messagebox_mod
+    ttk = ttk_mod
 
 
 @dataclass
@@ -537,7 +558,8 @@ def exportar_html(destino: Path, registros: list[Registro]):
 
 
 class AppRegistro:
-    def __init__(self, root: tk.Tk):
+    def __init__(self, root):
+        cargar_ui_escritorio()
         self.root = root
         self.root.title("Control personal de entradas y salidas")
         self.root.geometry("1180x860")
@@ -861,6 +883,7 @@ class AppRegistro:
 
 
 def main():
+    cargar_ui_escritorio()
     root = tk.Tk()
     style = ttk.Style()
     if "clam" in style.theme_names():
