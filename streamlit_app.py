@@ -13,6 +13,7 @@ from app_registro_hospital import (
     calcular_periodo,
     construir_fecha_hora_manual,
     exportar_html,
+    formatear_hora_visible,
     guardar_registro,
     guardar_registro_en_fecha,
     leer_registros,
@@ -82,7 +83,7 @@ def tabla_movimientos(registros):
     return [
         {
             "Fecha": registro.fecha,
-            "Hora": registro.hora,
+            "Hora": formatear_hora_visible(registro.hora),
             "Tipo": registro.tipo.capitalize(),
             "Turno": registro.turno,
             "Jornada": registro.jornada,
@@ -98,7 +99,7 @@ st.caption("Versión Streamlit para usar desde navegador y celular.")
 
 ahora = ahora_colombia()
 st.info(
-    f"Hora Colombia: {ahora.strftime('%Y-%m-%d %H:%M:%S')} | "
+    f"Hora Colombia: {ahora.strftime('%Y-%m-%d %H:%M')} | "
     f"Periodo actual: {calcular_periodo(ahora)}"
 )
 
@@ -139,7 +140,7 @@ with col_b:
     st.subheader("Registro manual")
     with st.form("registro_manual"):
         manual_fecha = st.date_input("Fecha", value=ahora.date(), format="YYYY-MM-DD")
-        manual_hora = st.time_input("Hora", value=ahora.time().replace(microsecond=0), step=60)
+        manual_hora = st.text_input("Hora (HH:MM)", value="", placeholder="07:00")
         manual_tipo = st.selectbox("Tipo", options=["entrada", "salida", "libre"])
         manual_turno = st.selectbox("Turno", options=["12h dia", "12h noche", "5h manana", "libre"])
         manual_detalle = st.text_input("Detalle", value="")
@@ -164,7 +165,7 @@ with col_b:
                 )
                 st.success(
                     f"Registro manual guardado: {registro.tipo.capitalize()} "
-                    f"{registro.fecha} {registro.hora} ({registro.turno})"
+                    f"{registro.fecha} {formatear_hora_visible(registro.hora)} ({registro.turno})"
                 )
             except ValueError as exc:
                 st.error(str(exc))

@@ -16,6 +16,7 @@ from app_registro_hospital import (
     ahora_colombia,
     calcular_periodo,
     exportar_html,
+    formatear_hora_visible,
     guardar_registro,
     guardar_registro_en_fecha,
     leer_registros,
@@ -261,7 +262,7 @@ def html_layout(content: str, mensaje: str = "", error: str = "") -> bytes:
       <h1>Registro personal del hospital</h1>
       <p>Versión web para celular. Guarda tus movimientos, calcula el tiempo por fuera de la institución y resume cada período del 21 al 20.</p>
       <div class="hero-meta">
-        <span class="badge">Hora Colombia: {ahora.strftime("%Y-%m-%d %H:%M:%S")}</span>
+        <span class="badge">Hora Colombia: {ahora.strftime("%Y-%m-%d %H:%M")}</span>
         <span class="badge">Período actual: {escape(periodo_actual)}</span>
       </div>
     </section>
@@ -318,7 +319,7 @@ def render_inicio(periodo_filtro: str, mensaje: str = "", error: str = "") -> by
     filas_movimientos = "".join(
         "<tr>"
         f"<td>{escape(registro.fecha)}</td>"
-        f"<td>{escape(registro.hora)}</td>"
+        f"<td>{escape(formatear_hora_visible(registro.hora))}</td>"
         f"<td>{escape(registro.tipo.capitalize())}</td>"
         f"<td>{escape(registro.turno)}</td>"
         f"<td>{escape(registro.jornada)}</td>"
@@ -360,8 +361,8 @@ def render_inicio(periodo_filtro: str, mensaje: str = "", error: str = "") -> by
               <input type="date" name="fecha" value="{ahora_colombia().strftime('%Y-%m-%d')}">
             </div>
             <div>
-              <label>Hora</label>
-              <input type="time" name="hora" step="1" value="{ahora_colombia().strftime('%H:%M:%S')}">
+              <label>Hora (HH:MM)</label>
+              <input type="time" name="hora" value="">
             </div>
             <div>
               <label>Tipo</label>

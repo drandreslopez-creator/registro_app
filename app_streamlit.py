@@ -12,6 +12,7 @@ from app_registro_hospital import (
     calcular_periodo,
     construir_fecha_hora_manual,
     exportar_html,
+    formatear_hora_visible,
     guardar_registro,
     guardar_registro_en_fecha,
     leer_registros,
@@ -146,7 +147,7 @@ def dataframe_movimientos(registros):
         filas.append(
             {
                 "Fecha": r.fecha,
-                "Hora": r.hora,
+                "Hora": formatear_hora_visible(r.hora),
                 "Tipo": r.tipo.capitalize(),
                 "Turno": r.turno,
                 "Jornada": r.jornada,
@@ -192,7 +193,7 @@ def registrar_manual():
     fecha_hora = construir_fecha_hora_manual(fecha, hora)
     guardar_registro_en_fecha(tipo=tipo, fecha_hora=fecha_hora, turno=turno, detalle=detalle)
     st.session_state["mensaje_ok"] = (
-        f"Registro manual guardado: {tipo.capitalize()} {fecha_hora.strftime('%Y-%m-%d %H:%M:%S')} ({turno})"
+        f"Registro manual guardado: {tipo.capitalize()} {fecha_hora.strftime('%Y-%m-%d %H:%M')} ({turno})"
     )
     st.session_state["manual_detalle"] = ""
 
@@ -215,7 +216,7 @@ def main():
           <h1>Registro personal del hospital</h1>
           <p>Versión Streamlit para celular y computador. Guarda tus movimientos por turno, calcula tiempo dentro y fuera, y resume cada período del 21 al 20.</p>
           <div class="pill-row">
-            <span class="pill">Hora Colombia: {ahora.strftime("%Y-%m-%d %H:%M:%S")}</span>
+            <span class="pill">Hora Colombia: {ahora.strftime("%Y-%m-%d %H:%M")}</span>
             <span class="pill">Período actual: {calcular_periodo(ahora)}</span>
           </div>
         </section>
@@ -274,7 +275,7 @@ def main():
         with st.form("registro_manual"):
             c1, c2, c3, c4 = st.columns(4)
             c1.date_input("Fecha", value=ahora.date(), key="manual_fecha")
-            c2.time_input("Hora", value=ahora.time().replace(microsecond=0), step=60, key="manual_hora")
+            c2.text_input("Hora (HH:MM)", value="", key="manual_hora", placeholder="07:00")
             c3.selectbox("Tipo", ["entrada", "salida", "libre"], key="manual_tipo")
             c4.selectbox("Turno", ["12h dia", "12h noche", "5h manana", "libre"], key="manual_turno")
             st.text_input("Detalle", key="manual_detalle")

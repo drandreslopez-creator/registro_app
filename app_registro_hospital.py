@@ -167,6 +167,13 @@ def minutos_a_texto(minutos: int) -> str:
     return f"{signo}{horas:02d}:{resto:02d}"
 
 
+def formatear_hora_visible(hora: str) -> str:
+    hora = hora.strip()
+    if len(hora) >= 5:
+        return hora[:5]
+    return hora
+
+
 def construir_fecha_hora_manual(fecha: date | datetime | str, hora: time | str) -> datetime:
     if isinstance(fecha, datetime):
         fecha_base = fecha.date()
@@ -189,7 +196,7 @@ def construir_fecha_hora_manual(fecha: date | datetime | str, hora: time | str) 
             except ValueError as exc:
                 ultimo_error = exc
         else:
-            raise ValueError("La hora debe tener formato HH:MM o HH:MM:SS.") from ultimo_error
+            raise ValueError("La hora debe tener formato HH:MM.") from ultimo_error
     else:
         raise ValueError("Hora manual inválida.")
 
@@ -280,7 +287,7 @@ def guardar_registro_en_fecha(tipo: str, fecha_hora: datetime, turno: str, detal
     jornada = calcular_jornada(turno_normalizado, fecha_hora)
     registro = Registro(
         fecha=fecha_hora.strftime("%Y-%m-%d"),
-        hora=fecha_hora.strftime("%H:%M:%S"),
+        hora=fecha_hora.strftime("%H:%M"),
         tipo=tipo,
         detalle=detalle,
         periodo=periodo,
@@ -600,7 +607,7 @@ class AppRegistro:
         self.periodo_var = tk.StringVar(value=f"Periodo actual: {calcular_periodo(ahora_colombia())}")
         self.resumen_var = tk.StringVar(value="")
         self.manual_fecha_var = tk.StringVar(value=ahora_colombia().strftime("%Y-%m-%d"))
-        self.manual_hora_var = tk.StringVar(value=ahora_colombia().strftime("%H:%M:%S"))
+        self.manual_hora_var = tk.StringVar(value="")
         self.manual_tipo_var = tk.StringVar(value="entrada")
         self.manual_turno_var = tk.StringVar(value=turno_actual_por_hora())
         self.manual_detalle_var = tk.StringVar(value="")
@@ -660,7 +667,7 @@ class AppRegistro:
             row=1, column=0, sticky="w", padx=(0, 8)
         )
 
-        ttk.Label(manual_frame, text="Hora").grid(row=0, column=1, sticky="w", padx=(0, 8))
+        ttk.Label(manual_frame, text="Hora (HH:MM)").grid(row=0, column=1, sticky="w", padx=(0, 8))
         ttk.Entry(manual_frame, textvariable=self.manual_hora_var, width=12).grid(
             row=1, column=1, sticky="w", padx=(0, 8)
         )
@@ -771,7 +778,7 @@ class AppRegistro:
         registro = guardar_registro(tipo=tipo, turno=turno, detalle=detalle)
         self.periodo_var.set(f"Periodo actual: {calcular_periodo(ahora_colombia())}")
         self.estado_var.set(
-            f"Registrado: {registro.tipo.capitalize()} el {registro.fecha} a las {registro.hora} en turno {registro.turno}."
+            f"Registrado: {registro.tipo.capitalize()} el {registro.fecha} a las {formatear_hora_visible(registro.hora)} en turno {registro.turno}."
         )
         self._cargar_tablas()
 
@@ -830,7 +837,7 @@ class AppRegistro:
                 "end",
                 values=(
                     registro.fecha,
-                    registro.hora,
+                    formatear_hora_visible(registro.hora),
                     registro.tipo.capitalize(),
                     registro.turno,
                     registro.jornada,
@@ -861,20 +868,18 @@ class AppRegistro:
             return
 
         try:
-            fecha_hora = datetime.strptime(f"{fecha_texto} {hora_texto}", DATE_FORMAT).replace(
-                tzinfo=COLOMBIA_TZ
-            )
+            fecha_hora = construir_fecha_hora_manual(fecha_texto, hora_texto)
         except ValueError:
             messagebox.showerror(
                 "Fecha u hora invalida",
-                "Usa el formato fecha AAAA-MM-DD y hora HH:MM:SS.",
+                "Usa el formato fecha AAAA-MM-DD y hora HH:MM.",
             )
             return
 
         registro = guardar_registro_en_fecha(tipo=tipo, fecha_hora=fecha_hora, turno=turno, detalle=detalle)
         self.periodo_var.set(f"Periodo actual: {calcular_periodo(ahora_colombia())}")
         self.estado_var.set(
-            f"Registrado manual: {registro.tipo.capitalize()} del {registro.fecha} a las {registro.hora} en turno {registro.turno}."
+            f"Registrado manual: {registro.tipo.capitalize()} del {registro.fecha} a las {formatear_hora_visible(registro.hora)} en turno {registro.turno}."
         )
         self.manual_detalle_var.set("")
         self._cargar_tablas()
