@@ -95,7 +95,7 @@ st.markdown(
     """
     <style>
     .block-container {
-      padding-top: 0.7rem;
+      padding-top: 1.05rem;
       padding-bottom: 1rem;
       max-width: 1120px;
     }
@@ -109,7 +109,7 @@ st.markdown(
     }
     @media (max-width: 768px) {
       .block-container {
-        padding-top: 0.55rem;
+        padding-top: 0.9rem;
         padding-left: 0.7rem;
         padding-right: 0.7rem;
       }
