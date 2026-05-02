@@ -123,7 +123,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-st.markdown('<p class="app-title">REGISTRO DE INGRESO HRS</p>', unsafe_allow_html=True)
+st.markdown('<p class="app-title">INGRESO HRS</p>', unsafe_allow_html=True)
 ahora = datetime.now()
 
 col_a, col_b = st.columns([1, 1], gap="small")
