@@ -22,7 +22,7 @@ from app_registro_hospital import (
 
 
 st.set_page_config(
-    page_title="Registro Hospital",
+    page_title="REGISTRO DE INGRESO HRS",
     page_icon="🏥",
     layout="wide",
 )
@@ -91,10 +91,39 @@ def tabla_movimientos(registros):
     ]
 
 
-st.title("Registro personal del hospital")
+st.markdown(
+    """
+    <style>
+    .block-container {
+      padding-top: 0.2rem;
+      padding-bottom: 1rem;
+      max-width: 1120px;
+    }
+    .app-title {
+      margin: 0 0 0.35rem 0;
+      font-size: 1.05rem;
+      line-height: 1.05;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    @media (max-width: 768px) {
+      .block-container {
+        padding-left: 0.7rem;
+        padding-right: 0.7rem;
+      }
+      .app-title {
+        font-size: 0.95rem;
+      }
+    }
+    </style>
+    <div class="app-title">REGISTRO DE INGRESO HRS</div>
+    """,
+    unsafe_allow_html=True,
+)
 ahora = datetime.now()
 
-col_a, col_b = st.columns([1, 1.4])
+col_a, col_b = st.columns([1, 1], gap="small")
 
 with col_a:
     st.subheader("Registro rápido")
@@ -138,10 +167,12 @@ with col_a:
 with col_b:
     st.subheader("Registro manual")
     with st.form("registro_manual"):
-        manual_fecha = st.date_input("Fecha", value=ahora.date(), format="YYYY-MM-DD")
-        manual_hora = st.text_input("Hora (HH:MM)", value="", placeholder="07:00")
-        manual_tipo = st.selectbox("Tipo", options=["entrada", "salida", "libre"])
-        manual_turno = st.selectbox("Turno", options=["12h dia", "12h noche", "5h manana", "libre"])
+        c1, c2 = st.columns(2)
+        manual_fecha = c1.date_input("Fecha", value=ahora.date(), format="YYYY-MM-DD")
+        manual_hora = c2.text_input("Hora (HH:MM)", value="", placeholder="07:00")
+        c3, c4 = st.columns(2)
+        manual_tipo = c3.selectbox("Tipo", options=["entrada", "salida", "libre"])
+        manual_turno = c4.selectbox("Turno", options=["12h dia", "12h noche", "5h manana", "libre"])
         manual_detalle = st.text_input("Detalle", value="")
         guardar_manual = st.form_submit_button("Guardar manual", use_container_width=True)
 
