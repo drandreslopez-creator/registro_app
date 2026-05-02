@@ -21,7 +21,7 @@ python3 app_registro_hospital.py
 3. Si quieres la version Streamlit, que es la mejor opcion para navegador y celular, ejecuta:
 
 ```bash
-python3 -m streamlit run app_streamlit.py
+python3 -m streamlit run streamlit_app.py
 ```
 
 4. Si quieres la version web simple, ejecuta:
@@ -93,12 +93,13 @@ Las exportaciones en `CSV` y `HTML` usan lo que tengas visible en ese momento.
 
 ## Version Streamlit
 
-- Ejecuta `python3 -m streamlit run app_streamlit.py`
+- Ejecuta `python3 -m streamlit run streamlit_app.py`
 - Se abrira en `http://localhost:8501`
 - En el celular, si esta en la misma red, puedes abrir `http://TU_IP_LOCAL:8501`
-- El archivo principal para subir a Streamlit es `app_streamlit.py`
+- El archivo principal para subir a Streamlit es `streamlit_app.py`
 - Las dependencias quedaron en `requirements.txt`
 - Usa el mismo historial de la app de escritorio
+- Importante: en Streamlit Community Cloud, los archivos generados por la app no estan garantizados entre reinicios o sesiones. Para uso real continuo conviene conectar un almacenamiento externo.
 
 ## Archivos que genera
 
@@ -107,5 +108,5 @@ Las exportaciones en `CSV` y `HTML` usan lo que tengas visible en ese momento.
 - `reporte_para_imprimir.html`: reporte para imprimir
 - `copias_seguridad/`: carpeta con respaldo automatico del historial
 - `app_registro_web.py`: version web para navegador y celular
-- `app_streamlit.py`: version principal para Streamlit
+- `streamlit_app.py`: version principal para Streamlit
 - `requirements.txt`: dependencias para ejecutar o publicar
