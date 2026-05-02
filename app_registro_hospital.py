@@ -84,7 +84,7 @@ class Registro:
 
     @property
     def fecha_hora(self) -> datetime:
-        return datetime.strptime(f"{self.fecha} {self.hora}", DATE_FORMAT).replace(tzinfo=COLOMBIA_TZ)
+        return parsear_fecha_hora_registro(self.fecha, self.hora)
 
 
 @dataclass
@@ -174,6 +174,19 @@ def formatear_hora_visible(hora: str) -> str:
     return hora
 
 
+def parsear_fecha_hora_registro(fecha: str, hora: str) -> datetime:
+    fecha = fecha.strip()
+    hora = hora.strip()
+    formatos = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M")
+    ultimo_error = None
+    for formato in formatos:
+        try:
+            return datetime.strptime(f"{fecha} {hora}", formato).replace(tzinfo=COLOMBIA_TZ)
+        except ValueError as exc:
+            ultimo_error = exc
+    raise ValueError(f"Fecha u hora de registro invalida: {fecha} {hora}") from ultimo_error
+
+
 def construir_fecha_hora_manual(fecha: date | datetime | str, hora: time | str) -> datetime:
     if isinstance(fecha, datetime):
         fecha_base = fecha.date()
@@ -241,7 +254,7 @@ def normalizar_archivo_existente():
         turno = mapa.get("turno", "") or ("libre" if tipo == "libre" else "sin definir")
 
         if fecha and hora:
-            fecha_hora = datetime.strptime(f"{fecha} {hora}", DATE_FORMAT).replace(tzinfo=COLOMBIA_TZ)
+            fecha_hora = parsear_fecha_hora_registro(fecha, hora)
             periodo = mapa.get("periodo", "") or calcular_periodo(fecha_hora)
             jornada = mapa.get("jornada", "") or calcular_jornada(turno, fecha_hora)
         else:
@@ -326,7 +339,7 @@ def leer_registros() -> list[Registro]:
             turno = row.get("turno", "") or ("libre" if tipo == "libre" else "sin definir")
             fecha_hora = None
             if fecha and hora:
-                fecha_hora = datetime.strptime(f"{fecha} {hora}", DATE_FORMAT).replace(tzinfo=COLOMBIA_TZ)
+                fecha_hora = parsear_fecha_hora_registro(fecha, hora)
 
             registros.append(
                 Registro(
