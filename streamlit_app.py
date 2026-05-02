@@ -6,6 +6,7 @@ import csv
 import streamlit as st
 
 from app_registro_hospital import (
+    ESTADOS_DIA,
     TODOS_LOS_PERIODOS,
     agrupar_resumenes_jornada,
     construir_fecha_hora_manual,
@@ -13,6 +14,8 @@ from app_registro_hospital import (
     formatear_hora_visible,
     guardar_registro,
     guardar_registro_en_fecha,
+    guardar_estado_dia,
+    leer_estados_dia,
     leer_registros,
     minutos_a_texto,
     periodos_disponibles,
@@ -33,6 +36,13 @@ def registros_filtrados(periodo_filtro: str):
     if periodo_filtro == TODOS_LOS_PERIODOS:
         return registros
     return [registro for registro in registros if registro.periodo == periodo_filtro]
+
+
+def estados_filtrados(periodo_filtro: str):
+    estados = leer_estados_dia()
+    if periodo_filtro == TODOS_LOS_PERIODOS:
+        return estados
+    return [estado for estado in estados if estado.periodo == periodo_filtro]
 
 
 def csv_bytes(registros) -> bytes:
@@ -91,6 +101,18 @@ def tabla_movimientos(registros):
     ]
 
 
+def tabla_estados(estados):
+    return [
+        {
+            "Fecha": estado.fecha,
+            "Estado programado": estado.estado.capitalize(),
+            "Detalle": estado.detalle,
+            "Periodo": estado.periodo,
+        }
+        for estado in estados
+    ]
+
+
 st.markdown(
     """
     <style>
@@ -99,31 +121,18 @@ st.markdown(
       padding-bottom: 1rem;
       max-width: 1120px;
     }
-    .app-title {
-      display: block;
-      margin: 0 0 0.75rem 0;
-      font-size: 1.7rem;
-      line-height: 1.05;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: inherit;
-    }
     @media (max-width: 768px) {
       .block-container {
         padding-top: 0.9rem;
         padding-left: 0.7rem;
         padding-right: 0.7rem;
       }
-      .app-title {
-        font-size: 1.32rem;
-      }
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
-st.markdown('<p class="app-title">INGRESO HRS</p>', unsafe_allow_html=True)
+st.title("INGRESO HRS")
 ahora = datetime.now()
 
 col_a, col_b = st.columns([1, 1], gap="small")
@@ -167,6 +176,23 @@ with col_a:
             except ValueError as exc:
                 st.error(str(exc))
 
+    st.subheader("Estado del día")
+    with st.form("estado_dia"):
+        estado_fecha = st.date_input("Fecha a programar", value=datetime.now().date(), format="YYYY-MM-DD")
+        estado_tipo = st.selectbox(
+            "Estado programado",
+            options=["12h dia", "12h noche", "5h manana", "libre", "saliente de noche", "libre despues de noche"],
+        )
+        estado_detalle = st.text_input("Detalle del estado", value="", placeholder="Opcional")
+        guardar_estado = st.form_submit_button("Guardar estado del día", use_container_width=True)
+
+        if guardar_estado:
+            try:
+                estado = guardar_estado_dia(estado_fecha, estado_tipo, estado_detalle)
+                st.success(f"Estado programado guardado: {estado.fecha} ({estado.estado})")
+            except ValueError as exc:
+                st.error(str(exc))
+
 with col_b:
     st.subheader("Registro manual")
     with st.form("registro_manual"):
@@ -207,6 +233,7 @@ registros = leer_registros()
 periodos = periodos_disponibles(registros)
 periodo_filtro = st.selectbox("Ver periodo", options=periodos, index=0)
 registros_vista = registros_filtrados(periodo_filtro)
+estados_vista = estados_filtrados(periodo_filtro)
 resumen_total = resumir_periodo(registros_vista)
 resumenes = agrupar_resumenes_jornada(registros_vista)
 
@@ -238,6 +265,12 @@ with exp_2:
 
 st.subheader("Resumen por jornada")
 st.dataframe(tabla_resumen(resumenes), use_container_width=True, hide_index=True)
+
+st.subheader("Estado programado del día")
+if estados_vista:
+    st.dataframe(tabla_estados(estados_vista), use_container_width=True, hide_index=True)
+else:
+    st.info("No hay estados programados en este periodo.")
 
 st.subheader("Movimientos registrados")
 st.dataframe(tabla_movimientos(registros_vista), use_container_width=True, hide_index=True)

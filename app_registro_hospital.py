@@ -12,11 +12,22 @@ from zoneinfo import ZoneInfo
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_FILE = BASE_DIR / "historial_registros.csv"
+STATE_FILE = BASE_DIR / "estados_dia.csv"
 BACKUP_DIR = BASE_DIR / "copias_seguridad"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 COLOMBIA_TZ = ZoneInfo("America/Bogota")
 TODOS_LOS_PERIODOS = "Todos los periodos"
 COLUMNAS_ARCHIVO = ["fecha", "hora", "tipo", "detalle", "periodo", "turno", "jornada"]
+COLUMNAS_ESTADOS = ["fecha", "estado", "detalle", "periodo"]
+ESTADOS_DIA = [
+    "12h dia",
+    "12h noche",
+    "5h manana",
+    "libre",
+    "saliente de noche",
+    "libre despues de noche",
+    "sin definir",
+]
 TURNOS = {
     "12h dia": {
         "duracion_minutos": 12 * 60,
@@ -99,6 +110,18 @@ class ResumenJornada:
     minutos_permitidos: int
     minutos_exceso: int
     estado: str
+
+
+@dataclass
+class EstadoDia:
+    fecha: str
+    estado: str
+    detalle: str
+    periodo: str
+
+    @property
+    def fecha_base(self) -> date:
+        return datetime.strptime(self.fecha, "%Y-%m-%d").date()
 
 
 def ahora_colombia() -> datetime:
@@ -237,9 +260,15 @@ def asegurar_archivo():
         with DATA_FILE.open("w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(COLUMNAS_ARCHIVO)
-        return
-
+    asegurar_archivo_estados()
     normalizar_archivo_existente()
+
+
+def asegurar_archivo_estados():
+    if not STATE_FILE.exists():
+        with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow(COLUMNAS_ESTADOS)
 
 
 def normalizar_archivo_existente():
@@ -378,6 +407,58 @@ def crear_copia_seguridad():
     fecha_respaldo = ahora_colombia().strftime("%Y%m%d")
     destino = BACKUP_DIR / f"historial_registros_{fecha_respaldo}.csv"
     shutil.copy2(DATA_FILE, destino)
+
+
+def guardar_estado_dia(fecha: date | str, estado: str, detalle: str = "") -> EstadoDia:
+    asegurar_archivo_estados()
+    if estado not in ESTADOS_DIA:
+        raise ValueError("Estado del dia invalido.")
+
+    if isinstance(fecha, date):
+        fecha_texto = fecha.strftime("%Y-%m-%d")
+        fecha_base = fecha
+    elif isinstance(fecha, str):
+        fecha_texto = fecha.strip()
+        fecha_base = datetime.strptime(fecha_texto, "%Y-%m-%d").date()
+    else:
+        raise ValueError("Fecha del estado invalida.")
+
+    periodo = calcular_periodo(datetime.combine(fecha_base, time(0, 0)).replace(tzinfo=COLOMBIA_TZ))
+    estado_dia = EstadoDia(fecha=fecha_texto, estado=estado, detalle=detalle.strip(), periodo=periodo)
+
+    estados = leer_estados_dia()
+    actualizados = [item for item in estados if item.fecha != fecha_texto]
+    actualizados.append(estado_dia)
+    actualizados.sort(key=lambda item: item.fecha)
+
+    with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(COLUMNAS_ESTADOS)
+        for item in actualizados:
+            writer.writerow([item.fecha, item.estado, item.detalle, item.periodo])
+
+    return estado_dia
+
+
+def leer_estados_dia() -> list[EstadoDia]:
+    asegurar_archivo_estados()
+    estados: list[EstadoDia] = []
+    with STATE_FILE.open("r", newline="", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            fecha = row.get("fecha", "").strip()
+            if not fecha:
+                continue
+            estado = row.get("estado", "").strip() or "sin definir"
+            detalle = row.get("detalle", "").strip()
+            periodo = row.get("periodo", "").strip()
+            if not periodo:
+                fecha_base = datetime.strptime(fecha, "%Y-%m-%d").date()
+                periodo = calcular_periodo(datetime.combine(fecha_base, time(0, 0)).replace(tzinfo=COLOMBIA_TZ))
+            estados.append(EstadoDia(fecha=fecha, estado=estado, detalle=detalle, periodo=periodo))
+
+    estados.sort(key=lambda item: item.fecha)
+    return estados
 
 
 def periodos_disponibles(registros: list[Registro]) -> list[str]:
