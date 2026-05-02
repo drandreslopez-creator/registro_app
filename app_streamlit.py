@@ -6,11 +6,11 @@ import streamlit as st
 
 from app_registro_hospital import (
     COLOMBIA_TZ,
-    DATE_FORMAT,
     TODOS_LOS_PERIODOS,
     agrupar_resumenes_jornada,
     ahora_colombia,
     calcular_periodo,
+    construir_fecha_hora_manual,
     exportar_html,
     guardar_registro,
     guardar_registro_en_fecha,
@@ -189,11 +189,11 @@ def registrar_manual():
         st.session_state["mensaje_error"] = "Entrada o salida no pueden quedar con turno libre."
         return
 
-    fecha_hora = datetime.combine(fecha, hora).replace(tzinfo=COLOMBIA_TZ)
-    texto = fecha_hora.strftime(DATE_FORMAT)
-    fecha_hora = datetime.strptime(texto, DATE_FORMAT).replace(tzinfo=COLOMBIA_TZ)
+    fecha_hora = construir_fecha_hora_manual(fecha, hora)
     guardar_registro_en_fecha(tipo=tipo, fecha_hora=fecha_hora, turno=turno, detalle=detalle)
-    st.session_state["mensaje_ok"] = "Registro manual guardado."
+    st.session_state["mensaje_ok"] = (
+        f"Registro manual guardado: {tipo.capitalize()} {fecha_hora.strftime('%Y-%m-%d %H:%M:%S')} ({turno})"
+    )
     st.session_state["manual_detalle"] = ""
 
 

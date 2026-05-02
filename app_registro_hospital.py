@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from html import escape
 from pathlib import Path
 import shutil
@@ -165,6 +165,35 @@ def minutos_a_texto(minutos: int) -> str:
     horas = minutos // 60
     resto = minutos % 60
     return f"{signo}{horas:02d}:{resto:02d}"
+
+
+def construir_fecha_hora_manual(fecha: date | datetime | str, hora: time | str) -> datetime:
+    if isinstance(fecha, datetime):
+        fecha_base = fecha.date()
+    elif isinstance(fecha, date):
+        fecha_base = fecha
+    elif isinstance(fecha, str):
+        fecha_base = datetime.strptime(fecha, "%Y-%m-%d").date()
+    else:
+        raise ValueError("Fecha manual inválida.")
+
+    if isinstance(hora, time):
+        hora_base = hora
+    elif isinstance(hora, str):
+        formatos = ("%H:%M:%S", "%H:%M")
+        ultimo_error = None
+        for formato in formatos:
+            try:
+                hora_base = datetime.strptime(hora.strip(), formato).time()
+                break
+            except ValueError as exc:
+                ultimo_error = exc
+        else:
+            raise ValueError("La hora debe tener formato HH:MM o HH:MM:SS.") from ultimo_error
+    else:
+        raise ValueError("Hora manual inválida.")
+
+    return datetime.combine(fecha_base, hora_base).replace(tzinfo=COLOMBIA_TZ)
 
 
 def asegurar_archivo():

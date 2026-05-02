@@ -7,11 +7,11 @@ import streamlit as st
 
 from app_registro_hospital import (
     COLOMBIA_TZ,
-    DATE_FORMAT,
     TODOS_LOS_PERIODOS,
     agrupar_resumenes_jornada,
     ahora_colombia,
     calcular_periodo,
+    construir_fecha_hora_manual,
     exportar_html,
     guardar_registro,
     guardar_registro_en_fecha,
@@ -139,7 +139,7 @@ with col_b:
     st.subheader("Registro manual")
     with st.form("registro_manual"):
         manual_fecha = st.date_input("Fecha", value=ahora.date(), format="YYYY-MM-DD")
-        manual_hora = st.text_input("Hora", value=ahora.strftime("%H:%M:%S"))
+        manual_hora = st.time_input("Hora", value=ahora.time().replace(microsecond=0), step=60)
         manual_tipo = st.selectbox("Tipo", options=["entrada", "salida", "libre"])
         manual_turno = st.selectbox("Turno", options=["12h dia", "12h noche", "5h manana", "libre"])
         manual_detalle = st.text_input("Detalle", value="")
@@ -147,10 +147,7 @@ with col_b:
 
         if guardar_manual:
             try:
-                fecha_hora = datetime.strptime(
-                    f"{manual_fecha.strftime('%Y-%m-%d')} {manual_hora}",
-                    DATE_FORMAT,
-                ).replace(tzinfo=COLOMBIA_TZ)
+                fecha_hora = construir_fecha_hora_manual(manual_fecha, manual_hora)
                 turno = manual_turno
                 detalle = manual_detalle.strip()
                 if manual_tipo == "libre":
