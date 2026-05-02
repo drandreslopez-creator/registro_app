@@ -95,25 +95,26 @@ st.markdown(
     """
     <style>
     .block-container {
-      padding-top: 0.2rem;
+      padding-top: 0.7rem;
       padding-bottom: 1rem;
       max-width: 1120px;
     }
     .app-title {
-      margin: 0 0 0.35rem 0;
-      font-size: 1.05rem;
+      margin: 0 0 0.55rem 0;
+      font-size: 1.7rem;
       line-height: 1.05;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
       font-weight: 700;
     }
     @media (max-width: 768px) {
       .block-container {
+        padding-top: 0.55rem;
         padding-left: 0.7rem;
         padding-right: 0.7rem;
       }
       .app-title {
-        font-size: 0.95rem;
+        font-size: 1.32rem;
       }
     }
     </style>
