@@ -100,12 +100,14 @@ st.markdown(
       max-width: 1120px;
     }
     .app-title {
-      margin: 0 0 0.55rem 0;
+      display: block;
+      margin: 0 0 0.75rem 0;
       font-size: 1.7rem;
       line-height: 1.05;
       letter-spacing: 0.04em;
       text-transform: uppercase;
       font-weight: 700;
+      color: inherit;
     }
     @media (max-width: 768px) {
       .block-container {
@@ -118,10 +120,10 @@ st.markdown(
       }
     }
     </style>
-    <div class="app-title">REGISTRO DE INGRESO HRS</div>
     """,
     unsafe_allow_html=True,
 )
+st.markdown('<p class="app-title">REGISTRO DE INGRESO HRS</p>', unsafe_allow_html=True)
 ahora = datetime.now()
 
 col_a, col_b = st.columns([1, 1], gap="small")
