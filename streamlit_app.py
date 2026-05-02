@@ -6,11 +6,8 @@ import csv
 import streamlit as st
 
 from app_registro_hospital import (
-    COLOMBIA_TZ,
     TODOS_LOS_PERIODOS,
     agrupar_resumenes_jornada,
-    ahora_colombia,
-    calcular_periodo,
     construir_fecha_hora_manual,
     exportar_html,
     formatear_hora_visible,
@@ -95,19 +92,7 @@ def tabla_movimientos(registros):
 
 
 st.title("Registro personal del hospital")
-st.caption("Versión Streamlit para usar desde navegador y celular.")
-
-ahora = ahora_colombia()
-st.info(
-    f"Hora Colombia: {ahora.strftime('%Y-%m-%d %H:%M')} | "
-    f"Periodo actual: {calcular_periodo(ahora)}"
-)
-
-st.warning(
-    "Si publicas esto en Streamlit Community Cloud, los archivos locales generados por la app "
-    "no están garantizados entre reinicios o sesiones. Para uso real y continuo conviene conectar "
-    "un almacenamiento externo."
-)
+ahora = datetime.now()
 
 col_a, col_b = st.columns([1, 1.4])
 
@@ -121,10 +106,9 @@ with col_a:
             if turno_actual_por_hora() in ["12h dia", "12h noche", "5h manana"]
             else 0,
         )
-        col_1, col_2, col_3 = st.columns(3)
+        col_1, col_2 = st.columns(2)
         enviar_entrada = col_1.form_submit_button("Registrar entrada", use_container_width=True)
         enviar_salida = col_2.form_submit_button("Registrar salida", use_container_width=True)
-        enviar_libre = col_3.form_submit_button("Registrar libre", use_container_width=True)
 
         if enviar_entrada:
             registro = guardar_registro(tipo="entrada", turno=turno_rapido)
@@ -132,9 +116,24 @@ with col_a:
         if enviar_salida:
             registro = guardar_registro(tipo="salida", turno=turno_rapido)
             st.success(f"Salida guardada: {registro.fecha} {registro.hora} ({registro.turno})")
-        if enviar_libre:
-            registro = guardar_registro(tipo="libre", turno="libre", detalle="Dia libre")
-            st.success(f"Día libre guardado: {registro.fecha}")
+
+    st.subheader("Día libre")
+    with st.form("registro_libre"):
+        libre_fecha = st.date_input("Fecha del día libre", value=datetime.now().date(), format="YYYY-MM-DD")
+        guardar_libre = st.form_submit_button("Bloquear día libre", use_container_width=True)
+
+        if guardar_libre:
+            try:
+                fecha_hora = construir_fecha_hora_manual(libre_fecha, "00:00")
+                registro = guardar_registro_en_fecha(
+                    tipo="libre",
+                    fecha_hora=fecha_hora,
+                    turno="libre",
+                    detalle="Dia libre",
+                )
+                st.success(f"Día libre guardado y bloqueado: {registro.fecha}")
+            except ValueError as exc:
+                st.error(str(exc))
 
 with col_b:
     st.subheader("Registro manual")

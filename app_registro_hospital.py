@@ -187,6 +187,21 @@ def parsear_fecha_hora_registro(fecha: str, hora: str) -> datetime:
     raise ValueError(f"Fecha u hora de registro invalida: {fecha} {hora}") from ultimo_error
 
 
+def validar_bloqueo_dia_libre(registros: list[Registro], tipo: str, fecha_hora: datetime):
+    fecha_texto = fecha_hora.strftime("%Y-%m-%d")
+    registros_dia = [registro for registro in registros if registro.fecha == fecha_texto]
+
+    if tipo == "libre":
+        if any(registro.tipo == "libre" for registro in registros_dia):
+            raise ValueError("Ese día ya está marcado como libre.")
+        if any(registro.tipo != "libre" for registro in registros_dia):
+            raise ValueError("No puedes marcar libre un día que ya tiene entradas o salidas.")
+        return
+
+    if any(registro.tipo == "libre" for registro in registros_dia):
+        raise ValueError("Ese día está bloqueado como libre y no admite más registros.")
+
+
 def construir_fecha_hora_manual(fecha: date | datetime | str, hora: time | str) -> datetime:
     if isinstance(fecha, datetime):
         fecha_base = fecha.date()
@@ -296,6 +311,7 @@ def guardar_registro(tipo: str, turno: str, detalle: str = "") -> Registro:
 
 def guardar_registro_en_fecha(tipo: str, fecha_hora: datetime, turno: str, detalle: str = "") -> Registro:
     turno_normalizado = turno if turno in TURNOS else "sin definir"
+    validar_bloqueo_dia_libre(leer_registros(), tipo, fecha_hora)
     periodo = calcular_periodo(fecha_hora)
     jornada = calcular_jornada(turno_normalizado, fecha_hora)
     registro = Registro(

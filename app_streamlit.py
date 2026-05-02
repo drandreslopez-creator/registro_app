@@ -5,11 +5,9 @@ import pandas as pd
 import streamlit as st
 
 from app_registro_hospital import (
-    COLOMBIA_TZ,
     TODOS_LOS_PERIODOS,
     agrupar_resumenes_jornada,
     ahora_colombia,
-    calcular_periodo,
     construir_fecha_hora_manual,
     exportar_html,
     formatear_hora_visible,
@@ -168,11 +166,12 @@ def registros_filtrados(periodo: str):
 def registrar_rapido():
     tipo = st.session_state["tipo_rapido"]
     turno = st.session_state["turno_rapido"]
-    detalle = "Dia libre" if tipo == "libre" else ""
-    if tipo == "libre":
-        turno = "libre"
-    guardar_registro(tipo=tipo, turno=turno, detalle=detalle)
-    st.session_state["mensaje_ok"] = f"Registro de {tipo} guardado."
+    detalle = ""
+    try:
+        guardar_registro(tipo=tipo, turno=turno, detalle=detalle)
+        st.session_state["mensaje_ok"] = f"Registro de {tipo} guardado."
+    except ValueError as exc:
+        st.session_state["mensaje_error"] = str(exc)
 
 
 def registrar_manual():
@@ -190,12 +189,25 @@ def registrar_manual():
         st.session_state["mensaje_error"] = "Entrada o salida no pueden quedar con turno libre."
         return
 
-    fecha_hora = construir_fecha_hora_manual(fecha, hora)
-    guardar_registro_en_fecha(tipo=tipo, fecha_hora=fecha_hora, turno=turno, detalle=detalle)
-    st.session_state["mensaje_ok"] = (
-        f"Registro manual guardado: {tipo.capitalize()} {fecha_hora.strftime('%Y-%m-%d %H:%M')} ({turno})"
-    )
-    st.session_state["manual_detalle"] = ""
+    try:
+        fecha_hora = construir_fecha_hora_manual(fecha, hora)
+        guardar_registro_en_fecha(tipo=tipo, fecha_hora=fecha_hora, turno=turno, detalle=detalle)
+        st.session_state["mensaje_ok"] = (
+            f"Registro manual guardado: {tipo.capitalize()} {fecha_hora.strftime('%Y-%m-%d %H:%M')} ({turno})"
+        )
+        st.session_state["manual_detalle"] = ""
+    except ValueError as exc:
+        st.session_state["mensaje_error"] = str(exc)
+
+
+def registrar_dia_libre():
+    fecha = st.session_state["libre_fecha"]
+    try:
+        fecha_hora = construir_fecha_hora_manual(fecha, "00:00")
+        guardar_registro_en_fecha(tipo="libre", fecha_hora=fecha_hora, turno="libre", detalle="Dia libre")
+        st.session_state["mensaje_ok"] = f"Día libre guardado y bloqueado: {fecha_hora.strftime('%Y-%m-%d')}"
+    except ValueError as exc:
+        st.session_state["mensaje_error"] = str(exc)
 
 
 def mostrar_mensajes():
@@ -209,16 +221,10 @@ def mostrar_mensajes():
 
 def main():
     estilos()
-    ahora = ahora_colombia()
     st.markdown(
         f"""
         <section class="hero">
           <h1>Registro personal del hospital</h1>
-          <p>Versión Streamlit para celular y computador. Guarda tus movimientos por turno, calcula tiempo dentro y fuera, y resume cada período del 21 al 20.</p>
-          <div class="pill-row">
-            <span class="pill">Hora Colombia: {ahora.strftime("%Y-%m-%d %H:%M")}</span>
-            <span class="pill">Período actual: {calcular_periodo(ahora)}</span>
-          </div>
         </section>
         """,
         unsafe_allow_html=True,
@@ -256,7 +262,7 @@ def main():
                 else 0,
                 key="turno_rapido",
             )
-            c1, c2, c3 = st.columns(3)
+            c1, c2 = st.columns(2)
             if c1.form_submit_button("Registrar entrada", use_container_width=True):
                 st.session_state["tipo_rapido"] = "entrada"
                 registrar_rapido()
@@ -265,9 +271,12 @@ def main():
                 st.session_state["tipo_rapido"] = "salida"
                 registrar_rapido()
                 st.rerun()
-            if c3.form_submit_button("Registrar libre", use_container_width=True):
-                st.session_state["tipo_rapido"] = "libre"
-                registrar_rapido()
+
+        st.subheader("Día libre")
+        with st.form("registro_libre"):
+            st.date_input("Fecha del día libre", value=ahora_colombia().date(), key="libre_fecha")
+            if st.form_submit_button("Bloquear día libre", use_container_width=True):
+                registrar_dia_libre()
                 st.rerun()
 
     with derecha:
