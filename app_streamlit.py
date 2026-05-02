@@ -33,58 +33,73 @@ def estilos():
         """
         <style>
         .block-container {
-          padding-top: 1.2rem;
-          padding-bottom: 2rem;
-          max-width: 1250px;
+          padding-top: 0.35rem;
+          padding-bottom: 1.4rem;
+          max-width: 1120px;
         }
         .hero {
-          padding: 1.4rem 1.4rem 1.1rem;
-          border: 1px solid #d7dfef;
-          border-radius: 22px;
-          background:
-            radial-gradient(circle at top right, rgba(253, 224, 71, 0.24), transparent 22%),
-            linear-gradient(135deg, #ffffff, #edf5ff);
-          margin-bottom: 1rem;
+          padding: 0.25rem 0 0.35rem;
+          margin-bottom: 0.2rem;
         }
         .hero h1 {
           margin: 0;
           color: #152033;
-          font-size: 2.1rem;
-        }
-        .hero p {
-          margin: 0.45rem 0 0;
-          color: #536074;
-          font-size: 1rem;
-        }
-        .pill-row {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-          margin-top: 0.9rem;
-        }
-        .pill {
-          padding: 0.45rem 0.8rem;
-          border-radius: 999px;
-          border: 1px solid #d7dfef;
-          background: rgba(255, 255, 255, 0.85);
-          color: #415065;
-          font-size: 0.92rem;
+          font-size: 1.25rem;
+          line-height: 1.05;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
         }
         .summary-card {
-          padding: 0.95rem 1rem;
-          border-radius: 18px;
+          padding: 0.8rem 0.85rem;
+          border-radius: 16px;
           border: 1px solid #d7dfef;
           background: linear-gradient(180deg, #ffffff, #f8fbff);
         }
         .summary-card .label {
           color: #607086;
-          font-size: 0.9rem;
+          font-size: 0.82rem;
         }
         .summary-card .value {
           color: #162033;
-          font-size: 1.35rem;
+          font-size: 1.1rem;
           font-weight: 700;
           margin-top: 0.2rem;
+        }
+        div[data-testid="stForm"] {
+          border: 1px solid #d7dfef;
+          border-radius: 18px;
+          padding: 0.7rem 0.8rem 0.5rem;
+          background: rgba(255, 255, 255, 0.78);
+        }
+        div[data-testid="stForm"] h3 {
+          margin-top: 0.2rem;
+        }
+        div[data-testid="stHorizontalBlock"] > div:has(div[data-testid="metric-container"]) {
+          min-width: 0;
+        }
+        [data-testid="stMetricValue"] {
+          font-size: 1.55rem;
+        }
+        @media (max-width: 768px) {
+          .block-container {
+            padding-top: 0.2rem;
+            padding-bottom: 1rem;
+            padding-left: 0.7rem;
+            padding-right: 0.7rem;
+          }
+          .hero h1 {
+            font-size: 1rem;
+            letter-spacing: 0.05em;
+          }
+          .summary-card {
+            padding: 0.7rem 0.75rem;
+          }
+          [data-testid="stMetricValue"] {
+            font-size: 1.2rem;
+          }
+          [data-testid="stMetricLabel"] {
+            font-size: 0.8rem;
+          }
         }
         </style>
         """,
@@ -224,7 +239,7 @@ def main():
     st.markdown(
         f"""
         <section class="hero">
-          <h1>Registro personal del hospital</h1>
+          <h1>REGISTRO DE INGRESO HRS</h1>
         </section>
         """,
         unsafe_allow_html=True,
@@ -249,7 +264,7 @@ def main():
     resumen_total = resumir_periodo(filtrados)
     resumenes_jornada = agrupar_resumenes_jornada(filtrados)
 
-    izquierda, derecha = st.columns([1, 1.35], gap="large")
+    izquierda, derecha = st.columns([1, 1], gap="medium")
 
     with izquierda:
         st.subheader("Registro rápido")
@@ -282,9 +297,10 @@ def main():
     with derecha:
         st.subheader("Registro manual")
         with st.form("registro_manual"):
-            c1, c2, c3, c4 = st.columns(4)
+            c1, c2 = st.columns(2)
             c1.date_input("Fecha", value=ahora.date(), key="manual_fecha")
             c2.text_input("Hora (HH:MM)", value="", key="manual_hora", placeholder="07:00")
+            c3, c4 = st.columns(2)
             c3.selectbox("Tipo", ["entrada", "salida", "libre"], key="manual_tipo")
             c4.selectbox("Turno", ["12h dia", "12h noche", "5h manana", "libre"], key="manual_turno")
             st.text_input("Detalle", key="manual_detalle")
