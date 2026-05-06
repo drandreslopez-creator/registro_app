@@ -6,28 +6,35 @@ from pathlib import Path
 import csv
 
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
 
 def configurar_google_desde_secrets():
-    if "google_service_account" in st.secrets:
-        valor = st.secrets["google_service_account"]
+    try:
+        secrets = st.secrets
+        list(secrets.keys())
+    except StreamlitSecretNotFoundError:
+        return
+
+    if "google_service_account" in secrets:
+        valor = secrets["google_service_account"]
         if isinstance(valor, str):
             os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = valor
         else:
             os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = json.dumps(dict(valor))
-    elif "google_service_account_json" in st.secrets:
-        os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = str(st.secrets["google_service_account_json"])
-    elif "GOOGLE_SERVICE_ACCOUNT_JSON" in st.secrets:
-        os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = str(st.secrets["GOOGLE_SERVICE_ACCOUNT_JSON"])
+    elif "google_service_account_json" in secrets:
+        os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = str(secrets["google_service_account_json"])
+    elif "GOOGLE_SERVICE_ACCOUNT_JSON" in secrets:
+        os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = str(secrets["GOOGLE_SERVICE_ACCOUNT_JSON"])
 
-    if "google_sheet_id" in st.secrets:
-        os.environ["GOOGLE_SHEET_ID"] = str(st.secrets["google_sheet_id"])
-    elif "google_sheet_url" in st.secrets:
-        os.environ["GOOGLE_SHEET_ID"] = str(st.secrets["google_sheet_url"])
-    elif "GOOGLE_SHEET_ID" in st.secrets:
-        os.environ["GOOGLE_SHEET_ID"] = str(st.secrets["GOOGLE_SHEET_ID"])
-    elif "GOOGLE_SHEET_URL" in st.secrets:
-        os.environ["GOOGLE_SHEET_ID"] = str(st.secrets["GOOGLE_SHEET_URL"])
+    if "google_sheet_id" in secrets:
+        os.environ["GOOGLE_SHEET_ID"] = str(secrets["google_sheet_id"])
+    elif "google_sheet_url" in secrets:
+        os.environ["GOOGLE_SHEET_ID"] = str(secrets["google_sheet_url"])
+    elif "GOOGLE_SHEET_ID" in secrets:
+        os.environ["GOOGLE_SHEET_ID"] = str(secrets["GOOGLE_SHEET_ID"])
+    elif "GOOGLE_SHEET_URL" in secrets:
+        os.environ["GOOGLE_SHEET_ID"] = str(secrets["GOOGLE_SHEET_URL"])
 
 
 configurar_google_desde_secrets()
