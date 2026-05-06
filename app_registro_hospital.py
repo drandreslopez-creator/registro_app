@@ -918,7 +918,7 @@ def resumenes_programado_vs_real(
                         jornada=jornada,
                         periodo=estado_dia.periodo,
                         turno="sin registros",
-                        horario="-",
+                        horario="Libre",
                         minutos_programados=0,
                         minutos_dentro=0,
                         minutos_fuera=0,
