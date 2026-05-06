@@ -70,6 +70,7 @@ tk = None
 filedialog = None
 messagebox = None
 ttk = None
+GOOGLE_WORKSHEETS_INICIALIZADAS: set[tuple[str, str]] = set()
 
 
 def cargar_ui_escritorio():
@@ -335,22 +336,28 @@ def _google_sheet():
 
 def _obtener_worksheet(nombre: str, headers: list[str]):
     libro = _google_sheet()
+    sheet_id = _normalizar_google_sheet_id(os.environ["GOOGLE_SHEET_ID"])
+    cache_key = (sheet_id, nombre)
     try:
         hoja = libro.worksheet(nombre)
     except Exception:
         try:
             hoja = libro.add_worksheet(title=nombre, rows=1000, cols=max(len(headers), 6))
             hoja.append_row(headers)
+            GOOGLE_WORKSHEETS_INICIALIZADAS.add(cache_key)
             return hoja
         except Exception:
             # If another request created the worksheet first, fetch it again.
             hoja = libro.worksheet(nombre)
 
-    valores = None
+    if cache_key in GOOGLE_WORKSHEETS_INICIALIZADAS:
+        return hoja
+
+    encabezado = None
     ultimo_error = None
     for _ in range(3):
         try:
-            valores = hoja.get_all_values()
+            encabezado = hoja.row_values(1)
             break
         except Exception as exc:
             ultimo_error = exc
@@ -360,14 +367,15 @@ def _obtener_worksheet(nombre: str, headers: list[str]):
             except Exception:
                 pass
 
-    if valores is None:
+    if encabezado is None:
         raise ultimo_error
 
-    if not valores:
+    if not encabezado:
         hoja.append_row(headers)
-    elif valores[0] != headers:
+    elif encabezado != headers:
         hoja.clear()
         hoja.append_row(headers)
+    GOOGLE_WORKSHEETS_INICIALIZADAS.add(cache_key)
     return hoja
 
 
