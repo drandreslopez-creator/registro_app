@@ -71,6 +71,7 @@ filedialog = None
 messagebox = None
 ttk = None
 GOOGLE_WORKSHEETS_INICIALIZADAS: set[tuple[str, str]] = set()
+GOOGLE_WORKSHEET_CACHE: dict[tuple[str, str], object] = {}
 
 
 def cargar_ui_escritorio():
@@ -263,7 +264,8 @@ def construir_fecha_hora_manual(fecha: date | datetime | str, hora: time | str) 
 def asegurar_archivo():
     BACKUP_DIR.mkdir(exist_ok=True)
     if usar_google_sheets():
-        asegurar_hojas_google()
+        if not _hojas_google_listas():
+            asegurar_hojas_google()
         return
     if not DATA_FILE.exists():
         with DATA_FILE.open("w", newline="", encoding="utf-8") as file:
@@ -275,7 +277,8 @@ def asegurar_archivo():
 
 def asegurar_archivo_estados():
     if usar_google_sheets():
-        asegurar_hojas_google()
+        if not _hojas_google_listas():
+            asegurar_hojas_google()
         return
     if not STATE_FILE.exists():
         with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
@@ -338,6 +341,9 @@ def _obtener_worksheet(nombre: str, headers: list[str]):
     libro = _google_sheet()
     sheet_id = _normalizar_google_sheet_id(os.environ["GOOGLE_SHEET_ID"])
     cache_key = (sheet_id, nombre)
+    if cache_key in GOOGLE_WORKSHEET_CACHE:
+        return GOOGLE_WORKSHEET_CACHE[cache_key]
+
     try:
         hoja = libro.worksheet(nombre)
     except Exception:
@@ -345,6 +351,7 @@ def _obtener_worksheet(nombre: str, headers: list[str]):
             hoja = libro.add_worksheet(title=nombre, rows=1000, cols=max(len(headers), 6))
             hoja.append_row(headers)
             GOOGLE_WORKSHEETS_INICIALIZADAS.add(cache_key)
+            GOOGLE_WORKSHEET_CACHE[cache_key] = hoja
             return hoja
         except Exception:
             # If another request created the worksheet first, fetch it again.
@@ -376,12 +383,21 @@ def _obtener_worksheet(nombre: str, headers: list[str]):
         hoja.clear()
         hoja.append_row(headers)
     GOOGLE_WORKSHEETS_INICIALIZADAS.add(cache_key)
+    GOOGLE_WORKSHEET_CACHE[cache_key] = hoja
     return hoja
 
 
 def asegurar_hojas_google():
     _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
     _obtener_worksheet("estados", COLUMNAS_ESTADOS)
+
+
+def _hojas_google_listas() -> bool:
+    if not usar_google_sheets():
+        return False
+    sheet_id = _normalizar_google_sheet_id(os.environ["GOOGLE_SHEET_ID"])
+    requeridas = {(sheet_id, "movimientos"), (sheet_id, "estados")}
+    return requeridas.issubset(GOOGLE_WORKSHEETS_INICIALIZADAS) and requeridas.issubset(set(GOOGLE_WORKSHEET_CACHE))
 
 
 def normalizar_archivo_existente():
