@@ -118,6 +118,12 @@ def normalizar_hora_interfaz(valor: str) -> str:
     return texto
 
 
+def normalizar_hora_manual_input():
+    st.session_state.manual_hora_input = normalizar_hora_interfaz(
+        st.session_state.get("manual_hora_input", "")
+    )
+
+
 def tabla_resumen(resumenes):
     filas = [
         {
@@ -279,11 +285,12 @@ with col_b:
 
     c1, c2 = st.columns(2)
     manual_fecha = c1.date_input("Fecha", value=ahora.date(), format="YYYY-MM-DD")
-    manual_hora = c2.text_input("Hora (HH:MM)", key="manual_hora_input", placeholder="0700")
-    hora_normalizada = normalizar_hora_interfaz(manual_hora)
-    if hora_normalizada != manual_hora:
-        st.session_state.manual_hora_input = hora_normalizada
-        st.rerun()
+    c2.text_input(
+        "Hora (HH:MM)",
+        key="manual_hora_input",
+        placeholder="0700",
+        on_change=normalizar_hora_manual_input,
+    )
 
     c3, c4 = st.columns(2)
     manual_tipo = c3.selectbox("Tipo", options=["entrada", "salida", "libre"])
