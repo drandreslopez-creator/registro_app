@@ -55,6 +55,7 @@ from app_registro_hospital import (
     leer_registros,
     minutos_a_texto,
     periodos_combinados,
+    resumenes_programado_vs_real,
     resumen_total_jornadas,
     resumir_periodo,
     turno_actual_por_hora,
@@ -122,10 +123,11 @@ def normalizar_hora_manual_input():
     )
 
 
-def tabla_resumen(resumenes):
+def tabla_resumen(filas_resumen):
     filas = [
         {
             "Jornada": item.jornada,
+            "Plan del dia": programado,
             "Turno": item.turno,
             "Programado": minutos_a_texto(item.minutos_programados),
             "Horario": item.horario,
@@ -135,13 +137,14 @@ def tabla_resumen(resumenes):
             "Exceso": minutos_a_texto(item.minutos_exceso),
             "Estado": item.estado,
         }
-        for item in resumenes
+        for item, programado in filas_resumen
     ]
-    if resumenes:
-        total = resumen_total_jornadas(resumenes)
+    if filas_resumen:
+        total = resumen_total_jornadas([item for item, _ in filas_resumen])
         filas.append(
             {
                 "Jornada": total.jornada,
+                "Plan del dia": "varios",
                 "Turno": total.turno,
                 "Programado": minutos_a_texto(total.minutos_programados),
                 "Horario": total.horario,
@@ -310,7 +313,7 @@ periodo_filtro = st.selectbox("Ver periodo", options=periodos, index=0)
 registros_vista = registros_filtrados(registros, periodo_filtro)
 estados_vista = estados_filtrados(estados, periodo_filtro)
 resumen_total = resumir_periodo(registros_vista)
-resumenes = agrupar_resumenes_jornada(registros_vista)
+filas_resumen = resumenes_programado_vs_real(registros_vista, estados_vista)
 
 met_1, met_2, met_3, met_4, met_5, met_6 = st.columns(6)
 met_1.metric("Turnos calculados", resumen_total["turnos"])
@@ -339,7 +342,7 @@ with exp_2:
     )
 
 st.subheader("Resumen por jornada")
-st.dataframe(tabla_resumen(resumenes), use_container_width=True, hide_index=True)
+st.dataframe(tabla_resumen(filas_resumen), use_container_width=True, hide_index=True)
 
 st.subheader("Estado programado del día")
 if estados_vista:
