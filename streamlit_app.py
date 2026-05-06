@@ -241,24 +241,6 @@ with col_a:
             registro = guardar_registro(tipo="salida", turno=turno_rapido)
             st.success(f"Salida guardada: {registro.fecha} {registro.hora} ({registro.turno})")
 
-    st.subheader("Día libre")
-    with st.form("registro_libre"):
-        libre_fecha = st.date_input("Fecha del día libre", value=datetime.now().date(), format="YYYY-MM-DD")
-        guardar_libre = st.form_submit_button("Bloquear día libre", use_container_width=True)
-
-        if guardar_libre:
-            try:
-                fecha_hora = construir_fecha_hora_manual(libre_fecha, "00:00")
-                registro = guardar_registro_en_fecha(
-                    tipo="libre",
-                    fecha_hora=fecha_hora,
-                    turno="libre",
-                    detalle="Dia libre",
-                )
-                st.success(f"Día libre guardado y bloqueado: {registro.fecha}")
-            except ValueError as exc:
-                st.error(str(exc))
-
     st.subheader("Estado del día")
     with st.form("estado_dia"):
         estado_fecha = st.date_input("Fecha a programar", value=datetime.now().date(), format="YYYY-MM-DD")
