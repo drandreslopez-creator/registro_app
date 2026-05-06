@@ -250,7 +250,7 @@ with col_a:
         estado_fecha = st.date_input("Fecha a programar", value=datetime.now().date(), format="YYYY-MM-DD")
         estado_tipo = st.selectbox(
             "Estado programado",
-            options=["12h dia", "12h noche", "5h manana", "libre", "saliente de noche", "libre despues de noche"],
+            options=["12h dia", "12h noche", "5h manana", "libre", "libre despues de noche"],
         )
         estado_detalle = st.text_input("Detalle del estado", value="", placeholder="Opcional")
         guardar_estado = st.form_submit_button("Guardar estado del día", use_container_width=True)

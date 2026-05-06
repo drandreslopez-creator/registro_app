@@ -29,7 +29,6 @@ ESTADOS_DIA = [
     "12h noche",
     "5h manana",
     "libre",
-    "saliente de noche",
     "libre despues de noche",
     "sin definir",
 ]
