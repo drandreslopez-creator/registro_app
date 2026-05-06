@@ -69,15 +69,13 @@ st.set_page_config(
 )
 
 
-def registros_filtrados(periodo_filtro: str):
-    registros = leer_registros()
+def registros_filtrados(registros, periodo_filtro: str):
     if periodo_filtro == TODOS_LOS_PERIODOS:
         return registros
     return [registro for registro in registros if registro.periodo == periodo_filtro]
 
 
-def estados_filtrados(periodo_filtro: str):
-    estados = leer_estados_dia()
+def estados_filtrados(estados, periodo_filtro: str):
     if periodo_filtro == TODOS_LOS_PERIODOS:
         return estados
     return [estado for estado in estados if estado.periodo == periodo_filtro]
@@ -327,8 +325,8 @@ registros = leer_registros()
 estados = leer_estados_dia()
 periodos = periodos_combinados(registros, estados)
 periodo_filtro = st.selectbox("Ver periodo", options=periodos, index=0)
-registros_vista = registros_filtrados(periodo_filtro)
-estados_vista = estados_filtrados(periodo_filtro)
+registros_vista = registros_filtrados(registros, periodo_filtro)
+estados_vista = estados_filtrados(estados, periodo_filtro)
 resumen_total = resumir_periodo(registros_vista)
 resumenes = agrupar_resumenes_jornada(registros_vista)
 

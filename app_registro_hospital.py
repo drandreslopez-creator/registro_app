@@ -381,6 +381,25 @@ def _hojas_google_listas() -> bool:
     return requeridas.issubset(GOOGLE_WORKSHEETS_INICIALIZADAS) and requeridas.issubset(set(GOOGLE_WORKSHEET_CACHE))
 
 
+def _google_con_reintento(func, *args, **kwargs):
+    ultimo_error = None
+    for intento in range(3):
+        try:
+            return func(*args, **kwargs)
+        except Exception as exc:
+            ultimo_error = exc
+            if intento == 2:
+                raise
+            time_module.sleep(1 + intento)
+    raise ultimo_error
+
+
+def _reescribir_worksheet(hoja, headers: list[str], filas: list[list[str]]):
+    valores = [headers, *filas]
+    _google_con_reintento(hoja.clear)
+    _google_con_reintento(hoja.update, range_name="A1", values=valores)
+
+
 def normalizar_archivo_existente():
     with DATA_FILE.open("r", newline="", encoding="utf-8") as file:
         filas = list(csv.reader(file))
@@ -465,7 +484,8 @@ def guardar_registro_en_fecha(tipo: str, fecha_hora: datetime, turno: str, detal
 
     if usar_google_sheets():
         hoja = _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
-        hoja.append_row(
+        _google_con_reintento(
+            hoja.append_row,
             [
                 registro.fecha,
                 registro.hora,
@@ -474,7 +494,7 @@ def guardar_registro_en_fecha(tipo: str, fecha_hora: datetime, turno: str, detal
                 registro.periodo,
                 registro.turno,
                 registro.jornada,
-            ]
+            ],
         )
         return registro
 
@@ -512,10 +532,10 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
 
     if usar_google_sheets():
         hoja = _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
-        hoja.clear()
-        hoja.append_row(COLUMNAS_ARCHIVO)
-        for registro in restantes:
-            hoja.append_row(
+        _reescribir_worksheet(
+            hoja,
+            COLUMNAS_ARCHIVO,
+            [
                 [
                     registro.fecha,
                     registro.hora,
@@ -525,7 +545,9 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
                     registro.turno,
                     registro.jornada,
                 ]
-            )
+                for registro in restantes
+            ],
+        )
         return True
 
     with DATA_FILE.open("w", newline="", encoding="utf-8") as file:
@@ -554,7 +576,7 @@ def leer_registros() -> list[Registro]:
 
     if usar_google_sheets():
         hoja = _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
-        filas = hoja.get_all_records()
+        filas = _google_con_reintento(hoja.get_all_records)
         for row in filas:
             fecha = str(row.get("fecha", "")).strip()
             hora = str(row.get("hora", "")).strip()
@@ -637,10 +659,11 @@ def guardar_estado_dia(fecha: date | str, estado: str, detalle: str = "") -> Est
 
     if usar_google_sheets():
         hoja = _obtener_worksheet("estados", COLUMNAS_ESTADOS)
-        hoja.clear()
-        hoja.append_row(COLUMNAS_ESTADOS)
-        for item in actualizados:
-            hoja.append_row([item.fecha, item.estado, item.detalle, item.periodo])
+        _reescribir_worksheet(
+            hoja,
+            COLUMNAS_ESTADOS,
+            [[item.fecha, item.estado, item.detalle, item.periodo] for item in actualizados],
+        )
         return estado_dia
 
     with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
@@ -667,10 +690,11 @@ def eliminar_estado_dia(fecha: date | str) -> bool:
 
     if usar_google_sheets():
         hoja = _obtener_worksheet("estados", COLUMNAS_ESTADOS)
-        hoja.clear()
-        hoja.append_row(COLUMNAS_ESTADOS)
-        for item in restantes:
-            hoja.append_row([item.fecha, item.estado, item.detalle, item.periodo])
+        _reescribir_worksheet(
+            hoja,
+            COLUMNAS_ESTADOS,
+            [[item.fecha, item.estado, item.detalle, item.periodo] for item in restantes],
+        )
         return True
 
     with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
@@ -688,7 +712,7 @@ def leer_estados_dia() -> list[EstadoDia]:
 
     if usar_google_sheets():
         hoja = _obtener_worksheet("estados", COLUMNAS_ESTADOS)
-        for row in hoja.get_all_records():
+        for row in _google_con_reintento(hoja.get_all_records):
             fecha = str(row.get("fecha", "")).strip()
             if not fecha:
                 continue
