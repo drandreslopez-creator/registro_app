@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import time as time_module
 from zoneinfo import ZoneInfo
 
 
@@ -326,7 +327,23 @@ def _obtener_worksheet(nombre: str, headers: list[str]):
             # If another request created the worksheet first, fetch it again.
             hoja = libro.worksheet(nombre)
 
-    valores = hoja.get_all_values()
+    valores = None
+    ultimo_error = None
+    for _ in range(3):
+        try:
+            valores = hoja.get_all_values()
+            break
+        except Exception as exc:
+            ultimo_error = exc
+            time_module.sleep(1)
+            try:
+                hoja = libro.worksheet(nombre)
+            except Exception:
+                pass
+
+    if valores is None:
+        raise ultimo_error
+
     if not valores:
         hoja.append_row(headers)
     elif valores[0] != headers:
