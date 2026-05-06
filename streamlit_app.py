@@ -144,7 +144,7 @@ def tabla_resumen(filas_resumen):
         filas.append(
             {
                 "Jornada": total.jornada,
-                "Plan del dia": "varios",
+                "Plan del dia": minutos_a_texto(total.minutos_programados),
                 "Turno": total.turno,
                 "Programado": minutos_a_texto(total.minutos_programados),
                 "Horario": total.horario,
