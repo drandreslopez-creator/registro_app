@@ -7,10 +7,30 @@ import csv
 
 import streamlit as st
 
-if "google_service_account" in st.secrets:
-    os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = json.dumps(dict(st.secrets["google_service_account"]))
-if "google_sheet_id" in st.secrets:
-    os.environ["GOOGLE_SHEET_ID"] = str(st.secrets["google_sheet_id"])
+
+def configurar_google_desde_secrets():
+    if "google_service_account" in st.secrets:
+        valor = st.secrets["google_service_account"]
+        if isinstance(valor, str):
+            os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = valor
+        else:
+            os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = json.dumps(dict(valor))
+    elif "google_service_account_json" in st.secrets:
+        os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = str(st.secrets["google_service_account_json"])
+    elif "GOOGLE_SERVICE_ACCOUNT_JSON" in st.secrets:
+        os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = str(st.secrets["GOOGLE_SERVICE_ACCOUNT_JSON"])
+
+    if "google_sheet_id" in st.secrets:
+        os.environ["GOOGLE_SHEET_ID"] = str(st.secrets["google_sheet_id"])
+    elif "google_sheet_url" in st.secrets:
+        os.environ["GOOGLE_SHEET_ID"] = str(st.secrets["google_sheet_url"])
+    elif "GOOGLE_SHEET_ID" in st.secrets:
+        os.environ["GOOGLE_SHEET_ID"] = str(st.secrets["GOOGLE_SHEET_ID"])
+    elif "GOOGLE_SHEET_URL" in st.secrets:
+        os.environ["GOOGLE_SHEET_ID"] = str(st.secrets["GOOGLE_SHEET_URL"])
+
+
+configurar_google_desde_secrets()
 
 from app_registro_hospital import (
     ESTADOS_DIA,
@@ -31,6 +51,7 @@ from app_registro_hospital import (
     resumen_total_jornadas,
     resumir_periodo,
     turno_actual_por_hora,
+    usar_google_sheets,
 )
 
 
@@ -171,6 +192,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.title("INGRESO HRS")
+if not usar_google_sheets():
+    st.warning("Google Sheets no está conectado todavía. La app seguiría usando archivos locales temporales.")
+
 ahora = datetime.now()
 
 col_a, col_b = st.columns([1, 1], gap="small")

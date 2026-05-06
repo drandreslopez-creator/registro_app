@@ -8,6 +8,7 @@ from html import escape
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 from zoneinfo import ZoneInfo
 
@@ -281,9 +282,22 @@ def asegurar_archivo_estados():
 
 def usar_google_sheets() -> bool:
     return bool(
-        os.environ.get("GOOGLE_SHEET_ID")
+        _normalizar_google_sheet_id(os.environ.get("GOOGLE_SHEET_ID", ""))
         and os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
     )
+
+
+def _normalizar_google_sheet_id(value: str) -> str:
+    texto = str(value or "").strip()
+    if not texto:
+        return ""
+    patron = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", texto)
+    if patron:
+        return patron.group(1)
+    patron = re.search(r"^[a-zA-Z0-9-_]{20,}$", texto)
+    if patron:
+        return patron.group(0)
+    return texto
 
 
 def _google_client():
@@ -295,7 +309,7 @@ def _google_client():
 
 def _google_sheet():
     client = _google_client()
-    sheet_id = os.environ["GOOGLE_SHEET_ID"].strip()
+    sheet_id = _normalizar_google_sheet_id(os.environ["GOOGLE_SHEET_ID"])
     return client.open_by_key(sheet_id)
 
 
@@ -304,9 +318,13 @@ def _obtener_worksheet(nombre: str, headers: list[str]):
     try:
         hoja = libro.worksheet(nombre)
     except Exception:
-        hoja = libro.add_worksheet(title=nombre, rows=1000, cols=max(len(headers), 6))
-        hoja.append_row(headers)
-        return hoja
+        try:
+            hoja = libro.add_worksheet(title=nombre, rows=1000, cols=max(len(headers), 6))
+            hoja.append_row(headers)
+            return hoja
+        except Exception:
+            # If another request created the worksheet first, fetch it again.
+            hoja = libro.worksheet(nombre)
 
     valores = hoja.get_all_values()
     if not valores:
