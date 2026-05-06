@@ -952,7 +952,8 @@ def resumen_total_jornadas(resumenes: list[ResumenJornada]) -> ResumenJornada:
     total_fuera = sum(item.minutos_fuera for item in resumenes)
     total_permitido = sum(item.minutos_permitidos for item in resumenes)
     total_exceso = sum(item.minutos_exceso for item in resumenes)
-    estado_total = "ok" if total_exceso == 0 and all(item.estado == "ok" for item in resumenes) else "revisar"
+    estados_ok = {"ok", "libre programado"}
+    estado_total = "ok" if total_exceso == 0 and all(item.estado in estados_ok for item in resumenes) else "revisar"
 
     return ResumenJornada(
         jornada="TOTAL",
