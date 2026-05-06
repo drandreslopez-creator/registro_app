@@ -267,7 +267,7 @@ with col_b:
     with st.form("registro_manual"):
         c1, c2 = st.columns(2)
         manual_fecha = c1.date_input("Fecha", value=ahora.date(), format="YYYY-MM-DD")
-        manual_hora = c2.text_input("Hora (HH:MM)", value="", placeholder="07:00")
+        manual_hora = c2.text_input("Hora (HH:MM)", value="", placeholder="0700")
         c3, c4 = st.columns(2)
         manual_tipo = c3.selectbox("Tipo", options=["entrada", "salida", "libre"])
         manual_turno = c4.selectbox("Turno", options=["12h dia", "12h noche", "5h manana", "libre"])

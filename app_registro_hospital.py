@@ -245,16 +245,21 @@ def construir_fecha_hora_manual(fecha: date | datetime | str, hora: time | str) 
     if isinstance(hora, time):
         hora_base = hora
     elif isinstance(hora, str):
+        hora_texto = hora.strip()
+        if hora_texto.isdigit() and len(hora_texto) in {3, 4}:
+            hora_texto = hora_texto.zfill(4)
+            hora_texto = f"{hora_texto[:2]}:{hora_texto[2:]}"
+
         formatos = ("%H:%M:%S", "%H:%M")
         ultimo_error = None
         for formato in formatos:
             try:
-                hora_base = datetime.strptime(hora.strip(), formato).time()
+                hora_base = datetime.strptime(hora_texto, formato).time()
                 break
             except ValueError as exc:
                 ultimo_error = exc
         else:
-            raise ValueError("La hora debe tener formato HH:MM.") from ultimo_error
+            raise ValueError("La hora debe tener formato HH:MM o HHMM.") from ultimo_error
     else:
         raise ValueError("Hora manual inválida.")
 
@@ -819,7 +824,7 @@ def resumen_total_jornadas(resumenes: list[ResumenJornada]) -> ResumenJornada:
         jornada="TOTAL",
         periodo=resumenes[0].periodo if resumenes else "",
         turno=f"{len(resumenes)} turnos",
-        horario="-",
+        horario=f"Acumulado trabajado: {minutos_a_texto(total_dentro)}",
         minutos_programados=total_programado,
         minutos_dentro=total_dentro,
         minutos_fuera=total_fuera,
