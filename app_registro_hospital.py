@@ -5,6 +5,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from html import escape
+import json
+import os
 from pathlib import Path
 import shutil
 from zoneinfo import ZoneInfo
@@ -256,6 +258,9 @@ def construir_fecha_hora_manual(fecha: date | datetime | str, hora: time | str) 
 
 def asegurar_archivo():
     BACKUP_DIR.mkdir(exist_ok=True)
+    if usar_google_sheets():
+        asegurar_hojas_google()
+        return
     if not DATA_FILE.exists():
         with DATA_FILE.open("w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
@@ -265,10 +270,56 @@ def asegurar_archivo():
 
 
 def asegurar_archivo_estados():
+    if usar_google_sheets():
+        asegurar_hojas_google()
+        return
     if not STATE_FILE.exists():
         with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(COLUMNAS_ESTADOS)
+
+
+def usar_google_sheets() -> bool:
+    return bool(
+        os.environ.get("GOOGLE_SHEET_ID")
+        and os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    )
+
+
+def _google_client():
+    import gspread
+
+    credenciales = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+    return gspread.service_account_from_dict(credenciales)
+
+
+def _google_sheet():
+    client = _google_client()
+    sheet_id = os.environ["GOOGLE_SHEET_ID"].strip()
+    return client.open_by_key(sheet_id)
+
+
+def _obtener_worksheet(nombre: str, headers: list[str]):
+    libro = _google_sheet()
+    try:
+        hoja = libro.worksheet(nombre)
+    except Exception:
+        hoja = libro.add_worksheet(title=nombre, rows=1000, cols=max(len(headers), 6))
+        hoja.append_row(headers)
+        return hoja
+
+    valores = hoja.get_all_values()
+    if not valores:
+        hoja.append_row(headers)
+    elif valores[0] != headers:
+        hoja.clear()
+        hoja.append_row(headers)
+    return hoja
+
+
+def asegurar_hojas_google():
+    _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
+    _obtener_worksheet("estados", COLUMNAS_ESTADOS)
 
 
 def normalizar_archivo_existente():
@@ -353,6 +404,21 @@ def guardar_registro_en_fecha(tipo: str, fecha_hora: datetime, turno: str, detal
         jornada=jornada,
     )
 
+    if usar_google_sheets():
+        hoja = _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
+        hoja.append_row(
+            [
+                registro.fecha,
+                registro.hora,
+                registro.tipo,
+                registro.detalle,
+                registro.periodo,
+                registro.turno,
+                registro.jornada,
+            ]
+        )
+        return registro
+
     with DATA_FILE.open("a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(
@@ -385,6 +451,24 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
     if not eliminado:
         return False
 
+    if usar_google_sheets():
+        hoja = _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
+        hoja.clear()
+        hoja.append_row(COLUMNAS_ARCHIVO)
+        for registro in restantes:
+            hoja.append_row(
+                [
+                    registro.fecha,
+                    registro.hora,
+                    registro.tipo,
+                    registro.detalle,
+                    registro.periodo,
+                    registro.turno,
+                    registro.jornada,
+                ]
+            )
+        return True
+
     with DATA_FILE.open("w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(COLUMNAS_ARCHIVO)
@@ -408,6 +492,31 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
 def leer_registros() -> list[Registro]:
     asegurar_archivo()
     registros: list[Registro] = []
+
+    if usar_google_sheets():
+        hoja = _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
+        filas = hoja.get_all_records()
+        for row in filas:
+            fecha = str(row.get("fecha", "")).strip()
+            hora = str(row.get("hora", "")).strip()
+            tipo = str(row.get("tipo", "")).strip()
+            if not fecha or not hora or not tipo:
+                continue
+            turno = str(row.get("turno", "")).strip() or ("libre" if tipo == "libre" else "sin definir")
+            fecha_hora = parsear_fecha_hora_registro(fecha, hora)
+            registros.append(
+                Registro(
+                    fecha=fecha,
+                    hora=hora,
+                    tipo=tipo,
+                    detalle=str(row.get("detalle", "")).strip(),
+                    periodo=str(row.get("periodo", "")).strip() or calcular_periodo(fecha_hora),
+                    turno=turno,
+                    jornada=str(row.get("jornada", "")).strip() or calcular_jornada(turno, fecha_hora),
+                )
+            )
+        registros.sort(key=lambda item: item.fecha_hora)
+        return registros
 
     with DATA_FILE.open("r", newline="", encoding="utf-8") as file:
         reader = csv.DictReader(file)
@@ -438,6 +547,8 @@ def leer_registros() -> list[Registro]:
 
 def crear_copia_seguridad():
     asegurar_archivo()
+    if usar_google_sheets():
+        return
     fecha_respaldo = ahora_colombia().strftime("%Y%m%d")
     destino = BACKUP_DIR / f"historial_registros_{fecha_respaldo}.csv"
     shutil.copy2(DATA_FILE, destino)
@@ -465,6 +576,14 @@ def guardar_estado_dia(fecha: date | str, estado: str, detalle: str = "") -> Est
     actualizados.append(estado_dia)
     actualizados.sort(key=lambda item: item.fecha)
 
+    if usar_google_sheets():
+        hoja = _obtener_worksheet("estados", COLUMNAS_ESTADOS)
+        hoja.clear()
+        hoja.append_row(COLUMNAS_ESTADOS)
+        for item in actualizados:
+            hoja.append_row([item.fecha, item.estado, item.detalle, item.periodo])
+        return estado_dia
+
     with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(COLUMNAS_ESTADOS)
@@ -487,6 +606,14 @@ def eliminar_estado_dia(fecha: date | str) -> bool:
     if len(restantes) == len(estados):
         return False
 
+    if usar_google_sheets():
+        hoja = _obtener_worksheet("estados", COLUMNAS_ESTADOS)
+        hoja.clear()
+        hoja.append_row(COLUMNAS_ESTADOS)
+        for item in restantes:
+            hoja.append_row([item.fecha, item.estado, item.detalle, item.periodo])
+        return True
+
     with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(COLUMNAS_ESTADOS)
@@ -499,6 +626,23 @@ def eliminar_estado_dia(fecha: date | str) -> bool:
 def leer_estados_dia() -> list[EstadoDia]:
     asegurar_archivo_estados()
     estados: list[EstadoDia] = []
+
+    if usar_google_sheets():
+        hoja = _obtener_worksheet("estados", COLUMNAS_ESTADOS)
+        for row in hoja.get_all_records():
+            fecha = str(row.get("fecha", "")).strip()
+            if not fecha:
+                continue
+            estado = str(row.get("estado", "")).strip() or "sin definir"
+            detalle = str(row.get("detalle", "")).strip()
+            periodo = str(row.get("periodo", "")).strip()
+            if not periodo:
+                fecha_base = datetime.strptime(fecha, "%Y-%m-%d").date()
+                periodo = calcular_periodo(datetime.combine(fecha_base, time(0, 0)).replace(tzinfo=COLOMBIA_TZ))
+            estados.append(EstadoDia(fecha=fecha, estado=estado, detalle=detalle, periodo=periodo))
+        estados.sort(key=lambda item: item.fecha)
+        return estados
+
     with STATE_FILE.open("r", newline="", encoding="utf-8") as file:
         reader = csv.DictReader(file)
         for row in reader:

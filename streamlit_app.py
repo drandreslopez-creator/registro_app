@@ -1,9 +1,16 @@
 from datetime import datetime
 from io import BytesIO, StringIO
+import json
+import os
 from pathlib import Path
 import csv
 
 import streamlit as st
+
+if "google_service_account" in st.secrets:
+    os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"] = json.dumps(dict(st.secrets["google_service_account"]))
+if "google_sheet_id" in st.secrets:
+    os.environ["GOOGLE_SHEET_ID"] = str(st.secrets["google_sheet_id"])
 
 from app_registro_hospital import (
     ESTADOS_DIA,

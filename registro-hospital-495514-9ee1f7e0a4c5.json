@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "registro-hospital-495514",
+  "private_key_id": "9ee1f7e0a4c5284c56bb94cbc7914888ff6fec2d",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDee8hBFuYmgrcL\nupdFz7xRg6geIJubjcSYqC2jdGYHZVHR/Z+RQSe3OylktRPsX9TgPwLykc9n4+T3\ntcOik57A9XBwZu1+lhU0p9ajcYvmUpzfscl0tGxZmQhoKLM+77FwfQmSVVjeT6fI\nqhG1+4X7ynhh9ce1WHpK3jMkbz9wCtsj+2lLGzVeCAT1tP4a0fQfir3cf5bqqZ5e\nbN6UwDhjm92BFj0u4bkk5wMK206qI9W4bnevfCLHeYEgY98Fe3C0oyu0K1M/wTfg\ncVZZPM7OoSe/ypa0o5Fjyz6oEqMj8LeAAqkTgg3tfw99ZF5ygAku9H5nIHN2JKFY\nirSD/U2RAgMBAAECggEAAaC3ON6xhWOccj4FwFGCR7hmYP4NFWjGoPVODC2cV36C\nyD4KTlZDM6B/r4hxol+bH57mZx7w/QoaUUOnsEdTOIczMOdX4n63ngCCXgTFKMS+\n+BYFatCtIESx3o05roKzcibADK2KLmo3yIyR/5pdAxgapGDXeriwgF660g/sT2YJ\ncS1qDqY9xFmxnIvNyZJhljJzxbKvuX0+0fp73jej+3brs8yjDPz3F0pFn7Sb45Hl\n6SFezlDTYk1D/HxXDuSnGYzdIgeHI23g07Ebm+f+gXtwebJ13kqIfJjL5wusTEEn\nq0Eu3xAvmCAQozVmTsJ3mRhemDveSzPMX1NIeQAEJwKBgQD0E3X65Kq/4haOQaMP\nbnXsFSZ8yVYbUqFVHWpnZGS9j5ko7cQk6Lq0OhxoO4+tUyz/nxQEgKy+nl8lMs3V\nf5SIJdQn3pLhRdx7wpoYZ9n9/tX/fSybYNhWfTtiA1kGU+2y3jngqSTMR6STExlE\n1sxY4WpTRrwXfGeO9LXiD17fewKBgQDpWkZOmYiHUg3HufzuvVqcr+BmXe26f8Gl\nw6ZznHcirif9ESMxTNFJpw+Fu68mcxtrCfzJToGajJfvrmmzcTwRSsHWPms98eBT\ntCpePFempaVGFc3/Mnp25M8gzHWgDffY5rwrUgqvuttp2ZbnVmqfL2RtimOLL+ER\nykFPPAhTYwKBgAvV7cCu2gDYC9P2JtwWtS0vkWA3uy80AJLKDGDbI291yS2M6hgI\nGRWoQ7xiNwNmpyX2JthZDQdpUp/RKN4Tg7Zebz1Hs8OsyZZOx34rewywENyEy2b1\neUgoZnrIQsblxv8He7MDQL+PMdHX+T+3Us10kN1c7r4M0FDEWRWPPUCFAoGAP/3V\nkfBglFtYFBFY309l7dn9O5U+gApQ3FhO6R1bPlNr++YbNIXQTtZVV2MkoPKn7i6K\n99ljiTJM6Bl4OxEuW7+YcFwlpJMT5WBezgDWOIjsTc/k8bqyArC0bFYlW4L5GK4N\npAOXkqE3UkutKjt0ebrRW4i7y4uRuQMx7byUu+kCgYAX5SZcN4o57r18Dd0ureKY\npIL+PDGNFoaYbFgr3/FdItZxL/uLGytmX2E0HMU/Mgvl4JU3JTWrriYPTE3xyzQt\nrsWC9LQdW7TaD9zoeKlH8/Ws+iKGikSiZj4WlzQpRUrtsa63SOZBDvlJqkHvovKn\nwZ5xjj8k1DATBRNKZAErog==\n-----END PRIVATE KEY-----\n",
+  "client_email": "registro-hospital@registro-hospital-495514.iam.gserviceaccount.com",
+  "client_id": "100403122585887848073",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/registro-hospital%40registro-hospital-495514.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
