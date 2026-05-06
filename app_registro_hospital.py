@@ -4,6 +4,7 @@ import csv
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from functools import lru_cache
 from html import escape
 import json
 import os
@@ -301,17 +302,35 @@ def _normalizar_google_sheet_id(value: str) -> str:
     return texto
 
 
-def _google_client():
+@lru_cache(maxsize=2)
+def _google_client_desde_json(credenciales_json: str):
     import gspread
 
-    credenciales = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+    credenciales = json.loads(credenciales_json)
     return gspread.service_account_from_dict(credenciales)
 
 
-def _google_sheet():
-    client = _google_client()
-    sheet_id = _normalizar_google_sheet_id(os.environ["GOOGLE_SHEET_ID"])
+def _google_client():
+    return _google_client_desde_json(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+
+
+@lru_cache(maxsize=4)
+def _google_sheet_desde_id(sheet_id: str, credenciales_json: str):
+    client = _google_client_desde_json(credenciales_json)
     return client.open_by_key(sheet_id)
+
+
+def _google_sheet():
+    sheet_id = _normalizar_google_sheet_id(os.environ["GOOGLE_SHEET_ID"])
+    credenciales_json = os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"]
+    try:
+        return _google_sheet_desde_id(sheet_id, credenciales_json)
+    except Exception as exc:
+        raise RuntimeError(
+            "No se pudo abrir la Google Sheet. Revisa el sheet id/url, "
+            "que la hoja este compartida con la cuenta de servicio como Editor "
+            "y que los Secrets de Streamlit sigan vigentes."
+        ) from exc
 
 
 def _obtener_worksheet(nombre: str, headers: list[str]):
