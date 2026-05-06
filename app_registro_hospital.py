@@ -346,6 +346,9 @@ def _obtener_worksheet(nombre: str, headers: list[str]):
 
     try:
         hoja = libro.worksheet(nombre)
+        GOOGLE_WORKSHEETS_INICIALIZADAS.add(cache_key)
+        GOOGLE_WORKSHEET_CACHE[cache_key] = hoja
+        return hoja
     except Exception:
         try:
             hoja = libro.add_worksheet(title=nombre, rows=1000, cols=max(len(headers), 6))
@@ -356,32 +359,6 @@ def _obtener_worksheet(nombre: str, headers: list[str]):
         except Exception:
             # If another request created the worksheet first, fetch it again.
             hoja = libro.worksheet(nombre)
-
-    if cache_key in GOOGLE_WORKSHEETS_INICIALIZADAS:
-        return hoja
-
-    encabezado = None
-    ultimo_error = None
-    for _ in range(3):
-        try:
-            encabezado = hoja.row_values(1)
-            break
-        except Exception as exc:
-            ultimo_error = exc
-            time_module.sleep(1)
-            try:
-                hoja = libro.worksheet(nombre)
-            except Exception:
-                pass
-
-    if encabezado is None:
-        raise ultimo_error
-
-    if not encabezado:
-        hoja.append_row(headers)
-    elif encabezado != headers:
-        hoja.clear()
-        hoja.append_row(headers)
     GOOGLE_WORKSHEETS_INICIALIZADAS.add(cache_key)
     GOOGLE_WORKSHEET_CACHE[cache_key] = hoja
     return hoja
