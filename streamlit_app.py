@@ -108,6 +108,16 @@ def html_bytes(registros) -> bytes:
     return destino.read_bytes()
 
 
+def normalizar_hora_interfaz(valor: str) -> str:
+    texto = "".join(char for char in str(valor or "") if char.isdigit() or char == ":")
+    if ":" in texto:
+        return texto[:5]
+    if len(texto) >= 3:
+        texto = texto[:4].zfill(4)
+        return f"{texto[:2]}:{texto[2:]}"
+    return texto
+
+
 def tabla_resumen(resumenes):
     filas = [
         {
@@ -264,39 +274,47 @@ with col_a:
 
 with col_b:
     st.subheader("Registro manual")
-    with st.form("registro_manual"):
-        c1, c2 = st.columns(2)
-        manual_fecha = c1.date_input("Fecha", value=ahora.date(), format="YYYY-MM-DD")
-        manual_hora = c2.text_input("Hora (HH:MM)", value="", placeholder="0700")
-        c3, c4 = st.columns(2)
-        manual_tipo = c3.selectbox("Tipo", options=["entrada", "salida", "libre"])
-        manual_turno = c4.selectbox("Turno", options=["12h dia", "12h noche", "5h manana", "libre"])
-        manual_detalle = st.text_input("Detalle", value="")
-        guardar_manual = st.form_submit_button("Guardar manual", use_container_width=True)
+    if "manual_hora_input" not in st.session_state:
+        st.session_state.manual_hora_input = ""
 
-        if guardar_manual:
-            try:
-                fecha_hora = construir_fecha_hora_manual(manual_fecha, manual_hora)
-                turno = manual_turno
-                detalle = manual_detalle.strip()
-                if manual_tipo == "libre":
-                    turno = "libre"
-                    detalle = detalle or "Dia libre"
-                elif turno == "libre":
-                    raise ValueError("Entrada o salida no pueden quedar con turno libre.")
+    c1, c2 = st.columns(2)
+    manual_fecha = c1.date_input("Fecha", value=ahora.date(), format="YYYY-MM-DD")
+    manual_hora = c2.text_input("Hora (HH:MM)", key="manual_hora_input", placeholder="0700")
+    hora_normalizada = normalizar_hora_interfaz(manual_hora)
+    if hora_normalizada != manual_hora:
+        st.session_state.manual_hora_input = hora_normalizada
+        st.rerun()
 
-                registro = guardar_registro_en_fecha(
-                    tipo=manual_tipo,
-                    fecha_hora=fecha_hora,
-                    turno=turno,
-                    detalle=detalle,
-                )
-                st.success(
-                    f"Registro manual guardado: {registro.tipo.capitalize()} "
-                    f"{registro.fecha} {formatear_hora_visible(registro.hora)} ({registro.turno})"
-                )
-            except ValueError as exc:
-                st.error(str(exc))
+    c3, c4 = st.columns(2)
+    manual_tipo = c3.selectbox("Tipo", options=["entrada", "salida", "libre"])
+    manual_turno = c4.selectbox("Turno", options=["12h dia", "12h noche", "5h manana", "libre"])
+    manual_detalle = st.text_input("Detalle", value="")
+    guardar_manual = st.button("Guardar manual", use_container_width=True)
+
+    if guardar_manual:
+        try:
+            fecha_hora = construir_fecha_hora_manual(manual_fecha, st.session_state.manual_hora_input)
+            turno = manual_turno
+            detalle = manual_detalle.strip()
+            if manual_tipo == "libre":
+                turno = "libre"
+                detalle = detalle or "Dia libre"
+            elif turno == "libre":
+                raise ValueError("Entrada o salida no pueden quedar con turno libre.")
+
+            registro = guardar_registro_en_fecha(
+                tipo=manual_tipo,
+                fecha_hora=fecha_hora,
+                turno=turno,
+                detalle=detalle,
+            )
+            st.session_state.manual_hora_input = ""
+            st.success(
+                f"Registro manual guardado: {registro.tipo.capitalize()} "
+                f"{registro.fecha} {formatear_hora_visible(registro.hora)} ({registro.turno})"
+            )
+        except ValueError as exc:
+            st.error(str(exc))
 
 registros = leer_registros()
 estados = leer_estados_dia()
