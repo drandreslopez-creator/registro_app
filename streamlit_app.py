@@ -42,6 +42,7 @@ configurar_google_desde_secrets()
 from app_registro_hospital import (
     ESTADOS_DIA,
     TODOS_LOS_PERIODOS,
+    TURNOS,
     agrupar_resumenes_jornada,
     construir_fecha_hora_manual,
     eliminar_estado_dia,
@@ -187,6 +188,34 @@ def tabla_estados(estados):
         }
         for estado in estados
     ]
+
+
+def resumen_estados_programados(estados):
+    total_minutos = 0
+    por_servicio = {}
+
+    for estado in estados:
+        minutos = TURNOS.get(estado.estado, TURNOS["sin definir"])["duracion_minutos"]
+        total_minutos += minutos
+
+        servicio = (estado.detalle or "Sin detalle").strip().upper()
+        if servicio not in por_servicio:
+            por_servicio[servicio] = {"dias": 0, "minutos": 0}
+        por_servicio[servicio]["dias"] += 1
+        por_servicio[servicio]["minutos"] += minutos
+
+    filas_servicio = [
+        {
+            "Servicio": servicio,
+            "Dias": datos["dias"],
+            "Horas programadas": horas_plan_total_texto(datos["minutos"]),
+        }
+        for servicio, datos in sorted(
+            por_servicio.items(),
+            key=lambda item: (-item[1]["minutos"], item[0]),
+        )
+    ]
+    return total_minutos, filas_servicio
 
 
 def etiqueta_registro(registro):
@@ -367,7 +396,12 @@ st.dataframe(tabla_resumen(filas_resumen), use_container_width=True, hide_index=
 
 st.subheader("Estado programado del día")
 if estados_vista:
+    total_minutos_programados, filas_servicio = resumen_estados_programados(estados_vista)
+    st.metric("Horas programadas del periodo", horas_plan_total_texto(total_minutos_programados))
     st.dataframe(tabla_estados(estados_vista), use_container_width=True, hide_index=True)
+    if filas_servicio:
+        st.caption("Organizado por servicio / detalle")
+        st.dataframe(filas_servicio, use_container_width=True, hide_index=True)
     with st.form("eliminar_estado"):
         estado_seleccionado = st.selectbox(
             "Eliminar estado programado",
