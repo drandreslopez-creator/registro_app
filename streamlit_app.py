@@ -446,11 +446,11 @@ if estados_vista:
         if periodo_filtro != TODOS_LOS_PERIODOS
         else "Horas programadas del filtro"
     )
-    st.metric(etiqueta_horas_programadas, horas_plan_total_texto(total_minutos_programados))
     st.dataframe(tabla_estados(estados_vista), use_container_width=True, hide_index=True)
     if filas_servicio:
         st.caption("Organizado por servicio / detalle")
         st.dataframe(filas_servicio, use_container_width=True, hide_index=True)
+    st.metric(etiqueta_horas_programadas, horas_plan_total_texto(total_minutos_programados))
     with st.form("eliminar_estado"):
         estado_seleccionado = st.selectbox(
             "Eliminar estado programado",
