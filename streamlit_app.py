@@ -44,6 +44,8 @@ from app_registro_hospital import (
     TODOS_LOS_PERIODOS,
     TURNOS,
     agrupar_resumenes_jornada,
+    ahora_colombia,
+    calcular_periodo,
     construir_fecha_hora_manual,
     eliminar_estado_dia,
     eliminar_registro,
@@ -359,7 +361,9 @@ except Exception as exc:
     st.stop()
 
 periodos = periodos_combinados(registros, estados)
-periodo_filtro = st.selectbox("Ver periodo", options=periodos, index=0)
+periodo_actual = calcular_periodo(ahora_colombia())
+indice_periodo = periodos.index(periodo_actual) if periodo_actual in periodos else 0
+periodo_filtro = st.selectbox("Ver periodo", options=periodos, index=indice_periodo)
 registros_vista = registros_filtrados(registros, periodo_filtro)
 estados_vista = estados_filtrados(estados, periodo_filtro)
 resumen_total = resumir_periodo(registros_vista)
@@ -397,7 +401,12 @@ st.dataframe(tabla_resumen(filas_resumen), use_container_width=True, hide_index=
 st.subheader("Estado programado del día")
 if estados_vista:
     total_minutos_programados, filas_servicio = resumen_estados_programados(estados_vista)
-    st.metric("Horas programadas del periodo", horas_plan_total_texto(total_minutos_programados))
+    etiqueta_horas_programadas = (
+        "Horas programadas del periodo"
+        if periodo_filtro != TODOS_LOS_PERIODOS
+        else "Horas programadas del filtro"
+    )
+    st.metric(etiqueta_horas_programadas, horas_plan_total_texto(total_minutos_programados))
     st.dataframe(tabla_estados(estados_vista), use_container_width=True, hide_index=True)
     if filas_servicio:
         st.caption("Organizado por servicio / detalle")
