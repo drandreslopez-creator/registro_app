@@ -72,6 +72,29 @@ st.set_page_config(
     layout="wide",
 )
 
+CLAVE_ACCESO_APP = "8041003"
+
+
+def verificar_acceso() -> bool:
+    if st.session_state.get("acceso_autorizado"):
+        return True
+
+    st.title("Acceso")
+    st.caption("Ingresa la clave para abrir la aplicación.")
+    with st.form("acceso_app"):
+        clave = st.text_input("Clave", type="password")
+        entrar = st.form_submit_button("Entrar", use_container_width=True)
+        if entrar:
+            if clave == CLAVE_ACCESO_APP:
+                st.session_state["acceso_autorizado"] = True
+                st.rerun()
+            st.error("Clave incorrecta.")
+    return False
+
+
+if not verificar_acceso():
+    st.stop()
+
 
 def registros_filtrados(registros, periodo_filtro: str):
     if periodo_filtro == TODOS_LOS_PERIODOS:
