@@ -654,7 +654,16 @@ def guardar_estado_dia(fecha: date | str, estado: str, detalle: str = "") -> Est
     estado_dia = EstadoDia(fecha=fecha_texto, estado=estado, detalle=detalle.strip(), periodo=periodo)
 
     estados = leer_estados_dia()
-    actualizados = [item for item in estados if item.fecha != fecha_texto]
+    actualizados = [
+        item
+        for item in estados
+        if not (
+            item.fecha == estado_dia.fecha
+            and item.estado == estado_dia.estado
+            and item.detalle == estado_dia.detalle
+            and item.periodo == estado_dia.periodo
+        )
+    ]
     actualizados.append(estado_dia)
     actualizados.sort(key=lambda item: item.fecha)
 
@@ -676,16 +685,29 @@ def guardar_estado_dia(fecha: date | str, estado: str, detalle: str = "") -> Est
     return estado_dia
 
 
-def eliminar_estado_dia(fecha: date | str) -> bool:
-    if isinstance(fecha, date):
-        fecha_texto = fecha.strftime("%Y-%m-%d")
-    elif isinstance(fecha, str):
-        fecha_texto = fecha.strip()
-    else:
-        return False
-
+def eliminar_estado_dia(estado_objetivo: EstadoDia | date | str) -> bool:
     estados = leer_estados_dia()
-    restantes = [item for item in estados if item.fecha != fecha_texto]
+
+    if isinstance(estado_objetivo, EstadoDia):
+        restantes = [
+            item
+            for item in estados
+            if not (
+                item.fecha == estado_objetivo.fecha
+                and item.estado == estado_objetivo.estado
+                and item.detalle == estado_objetivo.detalle
+                and item.periodo == estado_objetivo.periodo
+            )
+        ]
+    else:
+        if isinstance(estado_objetivo, date):
+            fecha_texto = estado_objetivo.strftime("%Y-%m-%d")
+        elif isinstance(estado_objetivo, str):
+            fecha_texto = estado_objetivo.strip()
+        else:
+            return False
+        restantes = [item for item in estados if item.fecha != fecha_texto]
+
     if len(restantes) == len(estados):
         return False
 

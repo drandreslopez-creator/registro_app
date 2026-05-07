@@ -459,7 +459,7 @@ if estados_vista:
         )
         confirmar_eliminar_estado = st.form_submit_button("Eliminar estado seleccionado", use_container_width=True)
         if confirmar_eliminar_estado:
-            if eliminar_estado_dia(estados_vista[estado_seleccionado].fecha):
+            if eliminar_estado_dia(estados_vista[estado_seleccionado]):
                 st.success("Estado programado eliminado.")
                 st.rerun()
             st.error("No se pudo eliminar el estado programado.")
