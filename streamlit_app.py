@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO, StringIO
 import json
 import os
@@ -420,13 +420,34 @@ except Exception as exc:
 
 periodos = periodos_combinados(registros, estados)
 periodo_actual = calcular_periodo(ahora_colombia())
-indice_periodo = periodos.index(periodo_actual) if periodo_actual in periodos else 0
-periodo_filtro = st.selectbox(
-    "Ver periodo",
-    options=periodos,
-    index=indice_periodo,
-    format_func=formatear_periodo_visible,
-)
+periodo_siguiente = calcular_periodo(ahora_colombia() + timedelta(days=30))
+if periodo_actual not in periodos:
+    periodos.append(periodo_actual)
+if periodo_siguiente not in periodos:
+    periodos.append(periodo_siguiente)
+periodos = [TODOS_LOS_PERIODOS] + sorted([item for item in periodos if item != TODOS_LOS_PERIODOS])
+
+if "periodo_filtro" not in st.session_state or st.session_state["periodo_filtro"] not in periodos:
+    st.session_state["periodo_filtro"] = periodo_actual if periodo_actual in periodos else periodos[0]
+
+col_periodo_1, col_periodo_2, col_periodo_3 = st.columns([2, 1, 1], gap="small")
+with col_periodo_1:
+    periodo_filtro = st.selectbox(
+        "Ver periodo",
+        options=periodos,
+        index=periodos.index(st.session_state["periodo_filtro"]),
+        format_func=formatear_periodo_visible,
+        key="periodo_filtro",
+    )
+with col_periodo_2:
+    if st.button("Periodo actual", use_container_width=True):
+        st.session_state["periodo_filtro"] = periodo_actual
+        st.rerun()
+with col_periodo_3:
+    if st.button("Proximo periodo", use_container_width=True):
+        st.session_state["periodo_filtro"] = periodo_siguiente
+        st.rerun()
+
 registros_vista = registros_filtrados(registros, periodo_filtro)
 estados_vista = estados_filtrados(estados, periodo_filtro)
 resumen_total = resumir_periodo(registros_vista)
