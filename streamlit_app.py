@@ -130,14 +130,42 @@ def horas_plan_total_texto(minutos: int) -> str:
     return str(minutos // 60)
 
 
+def formatear_fecha_visible(fecha: str) -> str:
+    try:
+        return datetime.strptime(fecha, "%Y-%m-%d").strftime("%d-%m-%y")
+    except ValueError:
+        return fecha
+
+
+def formatear_periodo_visible(periodo: str) -> str:
+    if " al " not in periodo:
+        return periodo
+    inicio, fin = periodo.split(" al ", 1)
+    return f"{formatear_fecha_visible(inicio)} al {formatear_fecha_visible(fin)}"
+
+
+def formatear_horario_visible(horario: str) -> str:
+    if horario in {"-", "Libre"}:
+        return horario
+    if " a " not in horario:
+        return horario
+    inicio, fin = horario.split(" a ", 1)
+    try:
+        inicio_dt = datetime.strptime(inicio, "%Y-%m-%d %H:%M")
+        fin_dt = datetime.strptime(fin, "%Y-%m-%d %H:%M")
+        return f"{inicio_dt.strftime('%d-%m-%y %H:%M')} a {fin_dt.strftime('%d-%m-%y %H:%M')}"
+    except ValueError:
+        return horario
+
+
 def tabla_resumen(filas_resumen):
     filas = [
         {
-            "Jornada": item.jornada,
+            "Jornada": formatear_fecha_visible(item.jornada) if item.jornada != "TOTAL" else item.jornada,
             "Plan del dia": programado,
             "Turno": item.turno,
             "Programado": minutos_a_texto(item.minutos_programados),
-            "Horario": item.horario,
+            "Horario": formatear_horario_visible(item.horario),
             "Dentro": minutos_a_texto(item.minutos_dentro),
             "Fuera": minutos_a_texto(item.minutos_fuera),
             "Permitido": minutos_a_texto(item.minutos_permitidos),
@@ -168,13 +196,13 @@ def tabla_resumen(filas_resumen):
 def tabla_movimientos(registros):
     return [
         {
-            "Fecha": registro.fecha,
+            "Fecha": formatear_fecha_visible(registro.fecha),
             "Hora": formatear_hora_visible(registro.hora),
             "Tipo": registro.tipo.capitalize(),
             "Turno": registro.turno,
-            "Jornada": registro.jornada,
+            "Jornada": formatear_fecha_visible(registro.jornada),
             "Detalle": registro.detalle,
-            "Periodo": registro.periodo,
+            "Periodo": formatear_periodo_visible(registro.periodo),
         }
         for registro in registros
     ]
@@ -183,10 +211,10 @@ def tabla_movimientos(registros):
 def tabla_estados(estados):
     return [
         {
-            "Fecha": estado.fecha,
+            "Fecha": formatear_fecha_visible(estado.fecha),
             "Estado programado": estado.estado.capitalize(),
             "Detalle": estado.detalle,
-            "Periodo": estado.periodo,
+            "Periodo": formatear_periodo_visible(estado.periodo),
         }
         for estado in estados
     ]
@@ -222,13 +250,13 @@ def resumen_estados_programados(estados):
 
 def etiqueta_registro(registro):
     return (
-        f"{registro.fecha} | {formatear_hora_visible(registro.hora)} | "
+        f"{formatear_fecha_visible(registro.fecha)} | {formatear_hora_visible(registro.hora)} | "
         f"{registro.tipo.capitalize()} | {registro.turno} | {registro.detalle or 'sin detalle'}"
     )
 
 
 def etiqueta_estado(estado):
-    return f"{estado.fecha} | {estado.estado} | {estado.detalle or 'sin detalle'}"
+    return f"{formatear_fecha_visible(estado.fecha)} | {estado.estado} | {estado.detalle or 'sin detalle'}"
 
 
 st.markdown(
@@ -274,14 +302,20 @@ with col_a:
 
         if enviar_entrada:
             registro = guardar_registro(tipo="entrada", turno=turno_rapido)
-            st.success(f"Entrada guardada: {registro.fecha} {registro.hora} ({registro.turno})")
+            st.success(
+                f"Entrada guardada: {formatear_fecha_visible(registro.fecha)} "
+                f"{registro.hora} ({registro.turno})"
+            )
         if enviar_salida:
             registro = guardar_registro(tipo="salida", turno=turno_rapido)
-            st.success(f"Salida guardada: {registro.fecha} {registro.hora} ({registro.turno})")
+            st.success(
+                f"Salida guardada: {formatear_fecha_visible(registro.fecha)} "
+                f"{registro.hora} ({registro.turno})"
+            )
 
     st.subheader("Estado del día")
     with st.form("estado_dia"):
-        estado_fecha = st.date_input("Fecha a programar", value=datetime.now().date(), format="YYYY-MM-DD")
+        estado_fecha = st.date_input("Fecha a programar", value=datetime.now().date(), format="DD-MM-YYYY")
         estado_tipo = st.selectbox(
             "Estado programado",
             options=["12h dia", "12h noche", "5h manana", "libre", "libre despues de noche"],
@@ -292,7 +326,7 @@ with col_a:
         if guardar_estado:
             try:
                 estado = guardar_estado_dia(estado_fecha, estado_tipo, estado_detalle)
-                st.success(f"Estado programado guardado: {estado.fecha} ({estado.estado})")
+                st.success(f"Estado programado guardado: {formatear_fecha_visible(estado.fecha)} ({estado.estado})")
             except ValueError as exc:
                 st.error(str(exc))
 
@@ -309,7 +343,7 @@ with col_b:
         st.session_state.manual_hora_input = ""
 
     c1, c2 = st.columns(2)
-    manual_fecha = c1.date_input("Fecha", value=ahora.date(), format="YYYY-MM-DD")
+    manual_fecha = c1.date_input("Fecha", value=ahora.date(), format="DD-MM-YYYY")
     c2.text_input(
         "Hora (HH:MM)",
         key="manual_hora_input",
@@ -343,7 +377,8 @@ with col_b:
             st.session_state.limpiar_hora_manual = True
             st.session_state["mensaje_manual_ok"] = (
                 f"Registro manual guardado: {registro.tipo.capitalize()} "
-                f"{registro.fecha} {formatear_hora_visible(registro.hora)} ({registro.turno})"
+                f"{formatear_fecha_visible(registro.fecha)} "
+                f"{formatear_hora_visible(registro.hora)} ({registro.turno})"
             )
             st.rerun()
         except ValueError as exc:
@@ -363,7 +398,12 @@ except Exception as exc:
 periodos = periodos_combinados(registros, estados)
 periodo_actual = calcular_periodo(ahora_colombia())
 indice_periodo = periodos.index(periodo_actual) if periodo_actual in periodos else 0
-periodo_filtro = st.selectbox("Ver periodo", options=periodos, index=indice_periodo)
+periodo_filtro = st.selectbox(
+    "Ver periodo",
+    options=periodos,
+    index=indice_periodo,
+    format_func=formatear_periodo_visible,
+)
 registros_vista = registros_filtrados(registros, periodo_filtro)
 estados_vista = estados_filtrados(estados, periodo_filtro)
 resumen_total = resumir_periodo(registros_vista)
