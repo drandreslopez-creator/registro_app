@@ -123,6 +123,10 @@ def normalizar_hora_manual_input():
     )
 
 
+def horas_plan_total_texto(minutos: int) -> str:
+    return str(minutos // 60)
+
+
 def tabla_resumen(filas_resumen):
     filas = [
         {
@@ -144,7 +148,7 @@ def tabla_resumen(filas_resumen):
         filas.append(
             {
                 "Jornada": total.jornada,
-                "Plan del dia": minutos_a_texto(total.minutos_programados),
+                "Plan del dia": horas_plan_total_texto(total.minutos_programados),
                 "Turno": total.turno,
                 "Programado": minutos_a_texto(total.minutos_programados),
                 "Horario": total.horario,
