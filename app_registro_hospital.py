@@ -960,12 +960,13 @@ def resumen_total_jornadas(resumenes: list[ResumenJornada]) -> ResumenJornada:
     total_fuera = sum(item.minutos_fuera for item in resumenes)
     total_permitido = sum(item.minutos_permitidos for item in resumenes)
     total_exceso = sum(item.minutos_exceso for item in resumenes)
+    turnos_reales = sum(1 for item in resumenes if item.minutos_programados > 0)
     estado_total = "ok" if total_fuera <= total_permitido else "revisar"
 
     return ResumenJornada(
         jornada="TOTAL",
         periodo=resumenes[0].periodo if resumenes else "",
-        turno=f"{len(resumenes)} turnos",
+        turno=f"{turnos_reales} turnos",
         horario=f"Acumulado trabajado: {minutos_a_texto(total_dentro)}",
         minutos_programados=total_programado,
         minutos_dentro=total_dentro,
