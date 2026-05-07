@@ -150,7 +150,7 @@ def tabla_resumen(filas_resumen):
                 "Jornada": total.jornada,
                 "Plan del dia": horas_plan_total_texto(total.minutos_programados),
                 "Turno": total.turno,
-                "Programado": minutos_a_texto(total.minutos_programados),
+                "Programado": horas_plan_total_texto(total.minutos_programados),
                 "Horario": total.horario,
                 "Dentro": minutos_a_texto(total.minutos_dentro),
                 "Fuera": minutos_a_texto(total.minutos_fuera),
