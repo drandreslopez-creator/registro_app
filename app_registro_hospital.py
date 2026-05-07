@@ -803,7 +803,12 @@ def agrupar_resumenes_jornada(registros: list[Registro]) -> list[ResumenJornada]
         minutos_permitidos = config["salida_permitida_minutos"]
         minutos_exceso = max(0, minutos_fuera - minutos_permitidos)
         minutos_dentro = max(0, minutos_programados - minutos_fuera)
-        estado = ", ".join(dict.fromkeys(incidencias)) if incidencias else "ok"
+        if incidencias:
+            estado = ", ".join(dict.fromkeys(incidencias))
+        elif minutos_exceso > 0:
+            estado = "ok (ojo)"
+        else:
+            estado = "ok"
 
         resumenes.append(
             ResumenJornada(
@@ -824,6 +829,9 @@ def agrupar_resumenes_jornada(registros: list[Registro]) -> list[ResumenJornada]
 
 
 def _combinar_estado_resumen(estado_base: str, avisos: list[str]) -> str:
+    if not avisos and estado_base in {"ok", "ok (ojo)"}:
+        return estado_base
+
     partes = []
     if estado_base and estado_base != "ok":
         partes.append(estado_base)
@@ -952,8 +960,7 @@ def resumen_total_jornadas(resumenes: list[ResumenJornada]) -> ResumenJornada:
     total_fuera = sum(item.minutos_fuera for item in resumenes)
     total_permitido = sum(item.minutos_permitidos for item in resumenes)
     total_exceso = sum(item.minutos_exceso for item in resumenes)
-    estados_ok = {"ok", "libre"}
-    estado_total = "ok" if total_exceso == 0 and all(item.estado in estados_ok for item in resumenes) else "revisar"
+    estado_total = "ok" if total_fuera <= total_permitido else "revisar"
 
     return ResumenJornada(
         jornada="TOTAL",
