@@ -306,8 +306,17 @@ with col_b:
         except ValueError as exc:
             st.error(str(exc))
 
-registros = leer_registros()
-estados = leer_estados_dia()
+try:
+    registros = leer_registros()
+    estados = leer_estados_dia()
+except Exception as exc:
+    st.error(
+        "No se pudo abrir la base de datos de Google Sheets. "
+        "Revisa la clave privada actual de la cuenta de servicio en Streamlit Secrets."
+    )
+    st.caption(str(exc))
+    st.stop()
+
 periodos = periodos_combinados(registros, estados)
 periodo_filtro = st.selectbox("Ver periodo", options=periodos, index=0)
 registros_vista = registros_filtrados(registros, periodo_filtro)
