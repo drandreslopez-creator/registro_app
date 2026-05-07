@@ -266,6 +266,9 @@ with col_b:
     if st.session_state.get("limpiar_hora_manual"):
         st.session_state.manual_hora_input = ""
         st.session_state.limpiar_hora_manual = False
+    if st.session_state.get("mensaje_manual_ok"):
+        st.success(st.session_state["mensaje_manual_ok"])
+        del st.session_state["mensaje_manual_ok"]
 
     if "manual_hora_input" not in st.session_state:
         st.session_state.manual_hora_input = ""
@@ -303,7 +306,7 @@ with col_b:
                 detalle=detalle,
             )
             st.session_state.limpiar_hora_manual = True
-            st.success(
+            st.session_state["mensaje_manual_ok"] = (
                 f"Registro manual guardado: {registro.tipo.capitalize()} "
                 f"{registro.fecha} {formatear_hora_visible(registro.hora)} ({registro.turno})"
             )
