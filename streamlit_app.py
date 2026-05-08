@@ -323,7 +323,7 @@ def tabla_evidencias(evidencias):
             "Hora": formatear_hora_visible(evidencia.hora),
             "Tipo": evidencia.tipo.capitalize(),
             "Turno": evidencia.turno,
-            "Ubicacion / referencia": evidencia.ubicacion_texto or "-",
+            "Observación": evidencia.ubicacion_texto or "-",
             "Foto": "Ver foto" if (evidencia.foto_url or evidencia.foto_nombre) else "Sin foto",
         }
         for evidencia in evidencias
@@ -348,7 +348,7 @@ def render_galeria_evidencias(evidencias):
         )
         with st.expander(titulo):
             if evidencia.ubicacion_texto:
-                st.write(f"Referencia: {evidencia.ubicacion_texto}")
+                st.write(f"Observación: {evidencia.ubicacion_texto}")
             if evidencia.foto_url:
                 st.image(evidencia.foto_url, use_container_width=True)
                 st.link_button("Abrir foto", evidencia.foto_url, use_container_width=True)
@@ -394,33 +394,10 @@ if "evidencia_foto_version" not in st.session_state:
     st.session_state["evidencia_foto_version"] = 0
 
 if st.session_state.get("limpiar_evidencia_pendiente"):
-    st.session_state["evidencia_ubicacion"] = ""
-    st.session_state["evidencia_nota"] = ""
+    st.session_state["evidencia_observacion"] = ""
+    st.session_state["usar_evidencia_rapida"] = False
     st.session_state["evidencia_foto_version"] += 1
     st.session_state["limpiar_evidencia_pendiente"] = False
-
-with st.expander("Evidencia opcional para el proximo registro"):
-    st.caption("Puedes adjuntar una foto y una referencia de ubicacion para dejar soporte adicional.")
-    if usar_cloudinary():
-        st.caption("Las fotos se subirán a Cloudinary.")
-    elif os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip():
-        st.caption("Las fotos intentarán guardarse en Google Drive.")
-    else:
-        st.warning(
-            "Las fotos aún no están configuradas para nube. "
-            "Falta Cloudinary o Google Drive."
-        )
-    st.text_input(
-        "Ubicacion / referencia",
-        key="evidencia_ubicacion",
-        placeholder="Ejemplo: entrada principal, porteria, HX, urgencias",
-    )
-    st.text_area(
-        "Nota de evidencia",
-        key="evidencia_nota",
-        placeholder="Opcional",
-    )
-    st.camera_input("Tomar foto", key=clave_foto_evidencia_actual())
 
 ahora = datetime.now()
 
@@ -436,22 +413,38 @@ with col_a:
             if turno_actual_por_hora() in ["12h dia", "12h noche", "5h manana"]
             else 0,
         )
+        usar_evidencia_rapida = st.checkbox(
+            "Agregar evidencia",
+            key="usar_evidencia_rapida",
+        )
+        if usar_evidencia_rapida:
+            evidencia_col_1, evidencia_col_2 = st.columns([0.9, 1.1], gap="small")
+            with evidencia_col_1:
+                st.camera_input("Foto opcional", key=clave_foto_evidencia_actual())
+            with evidencia_col_2:
+                st.text_area(
+                    "Observación (opcional)",
+                    key="evidencia_observacion",
+                    placeholder="Opcional",
+                    height=90,
+                )
+        elif not usar_cloudinary() and not os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip():
+            st.caption("Si activas evidencia, primero debes configurar almacenamiento de fotos.")
         col_1, col_2 = st.columns(2)
         enviar_entrada = col_1.form_submit_button("Registrar entrada", use_container_width=True)
         enviar_salida = col_2.form_submit_button("Registrar salida", use_container_width=True)
 
         if enviar_entrada:
             registro = guardar_registro(tipo="entrada", turno=turno_rapido)
-            try:
-                guardar_evidencia_registro(
-                    registro,
-                    ubicacion_texto=" | ".join(
-                        [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
-                    ),
-                    foto_bytes=obtener_foto_evidencia_bytes(),
-                )
-            except Exception as exc:
-                st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
+            if st.session_state.get("usar_evidencia_rapida"):
+                try:
+                    guardar_evidencia_registro(
+                        registro,
+                        ubicacion_texto=st.session_state.get("evidencia_observacion", ""),
+                        foto_bytes=obtener_foto_evidencia_bytes(),
+                    )
+                except Exception as exc:
+                    st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
             limpiar_evidencia_pendiente()
             st.success(
                 f"Entrada guardada: {formatear_fecha_visible(registro.fecha)} "
@@ -459,16 +452,15 @@ with col_a:
             )
         if enviar_salida:
             registro = guardar_registro(tipo="salida", turno=turno_rapido)
-            try:
-                guardar_evidencia_registro(
-                    registro,
-                    ubicacion_texto=" | ".join(
-                        [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
-                    ),
-                    foto_bytes=obtener_foto_evidencia_bytes(),
-                )
-            except Exception as exc:
-                st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
+            if st.session_state.get("usar_evidencia_rapida"):
+                try:
+                    guardar_evidencia_registro(
+                        registro,
+                        ubicacion_texto=st.session_state.get("evidencia_observacion", ""),
+                        foto_bytes=obtener_foto_evidencia_bytes(),
+                    )
+                except Exception as exc:
+                    st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
             limpiar_evidencia_pendiente()
             st.success(
                 f"Salida guardada: {formatear_fecha_visible(registro.fecha)} "
@@ -536,18 +528,7 @@ with col_b:
                 turno=turno,
                 detalle=detalle,
             )
-            try:
-                guardar_evidencia_registro(
-                    registro,
-                    ubicacion_texto=" | ".join(
-                        [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
-                    ),
-                    foto_bytes=obtener_foto_evidencia_bytes(),
-                )
-            except Exception as exc:
-                st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
             st.session_state.limpiar_hora_manual = True
-            limpiar_evidencia_pendiente()
             st.session_state["mensaje_manual_ok"] = (
                 f"Registro manual guardado: {registro.tipo.capitalize()} "
                 f"{formatear_fecha_visible(registro.fecha)} "
