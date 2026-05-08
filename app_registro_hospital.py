@@ -497,16 +497,22 @@ def guardar_foto_evidencia(nombre_base: str, foto_bytes: bytes) -> tuple[str, st
                 .create(body=metadata, media_body=media, fields="id, webViewLink")
                 .execute()
             )
-            servicio.permissions().create(
-                fileId=archivo["id"],
-                body={"type": "anyone", "role": "reader"},
-            ).execute()
+            try:
+                servicio.permissions().create(
+                    fileId=archivo["id"],
+                    body={"type": "anyone", "role": "reader"},
+                ).execute()
+            except Exception:
+                # Some Google Workspace / Drive configs block public-link permissions.
+                # The file may still exist correctly inside the shared folder.
+                pass
             foto_url = archivo.get("webViewLink") or f"https://drive.google.com/file/d/{archivo['id']}/view"
             return nombre_archivo, foto_url
         except Exception as exc:
             raise RuntimeError(
                 "No se pudo subir la foto a Google Drive. Revisa la carpeta compartida, "
-                "el google_drive_folder_id y los permisos de la cuenta de servicio."
+                "el google_drive_folder_id, la Google Drive API y los permisos de la cuenta de servicio. "
+                f"Detalle: {exc}"
             ) from exc
 
     EVIDENCE_DIR.mkdir(exist_ok=True)
