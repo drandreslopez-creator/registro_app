@@ -1334,6 +1334,19 @@ def _turno_programado_vencido(fecha: str, estado_programado: str, referencia: da
     return referencia >= fin
 
 
+def _orden_estado_turno(valor: str) -> int:
+    orden = {
+        "5h manana": 0,
+        "12h dia": 1,
+        "12h noche": 2,
+        "libre despues de noche": 3,
+        "libre": 4,
+        "sin definir": 5,
+        "sin programar": 6,
+    }
+    return orden.get(valor, 99)
+
+
 def resumenes_programado_vs_real(
     registros: list[Registro],
     estados: list[EstadoDia],
@@ -1341,24 +1354,51 @@ def resumenes_programado_vs_real(
 ) -> list[tuple[ResumenJornada, str]]:
     referencia = referencia or ahora_colombia()
     resumenes_base = agrupar_resumenes_jornada(registros)
-    resumenes_por_jornada = {item.jornada: item for item in resumenes_base}
-    estados_por_fecha = {item.fecha: item for item in estados}
+    resumenes_por_jornada: dict[str, list[ResumenJornada]] = defaultdict(list)
+    for item in resumenes_base:
+        resumenes_por_jornada[item.jornada].append(item)
+    for jornada in resumenes_por_jornada:
+        resumenes_por_jornada[jornada].sort(key=lambda item: (_orden_estado_turno(item.turno), item.horario))
+
+    estados_por_fecha: dict[str, list[EstadoDia]] = defaultdict(list)
+    for item in estados:
+        estados_por_fecha[item.fecha].append(item)
+    for fecha in estados_por_fecha:
+        estados_por_fecha[fecha].sort(key=lambda item: (_orden_estado_turno(item.estado), item.detalle))
 
     jornadas = sorted(set(resumenes_por_jornada) | set(estados_por_fecha))
     filas: list[tuple[ResumenJornada, str]] = []
 
     for jornada in jornadas:
-        resumen = resumenes_por_jornada.get(jornada)
-        estado_dia = estados_por_fecha.get(jornada)
-        programado = estado_dia.estado if estado_dia else "sin programar"
+        resumenes_jornada = list(resumenes_por_jornada.get(jornada, []))
+        estados_jornada = list(estados_por_fecha.get(jornada, []))
+        usados_estados: set[int] = set()
 
-        if resumen is not None:
+        for resumen in resumenes_jornada:
+            match_index = None
+            for indice, estado_dia in enumerate(estados_jornada):
+                if indice in usados_estados:
+                    continue
+                if estado_dia.estado == resumen.turno:
+                    match_index = indice
+                    break
+            if match_index is None:
+                for indice, estado_dia in enumerate(estados_jornada):
+                    if indice not in usados_estados:
+                        match_index = indice
+                        break
+
+            estado_dia = estados_jornada[match_index] if match_index is not None else None
+            if match_index is not None:
+                usados_estados.add(match_index)
+
+            programado = estado_dia.estado if estado_dia else "sin programar"
             avisos: list[str] = []
             if estado_dia is None:
                 avisos.append("sin programacion")
             elif estado_dia.estado in ESTADOS_CON_TURNO and resumen.turno != estado_dia.estado:
                 avisos.append("turno distinto a programado")
-            elif estado_dia.estado == "libre":
+            elif estado_dia.estado in {"libre", "libre despues de noche"}:
                 avisos.append("movimientos en dia libre")
 
             filas.append(
@@ -1378,48 +1418,49 @@ def resumenes_programado_vs_real(
                     programado,
                 )
             )
-            continue
 
-        if estado_dia is None:
-            continue
+        for indice, estado_dia in enumerate(estados_jornada):
+            if indice in usados_estados:
+                continue
 
-        if estado_dia.estado in ESTADOS_CON_TURNO and _turno_programado_vencido(jornada, estado_dia.estado, referencia):
-            config = TURNOS[estado_dia.estado]
-            filas.append(
-                (
-                    ResumenJornada(
-                        jornada=jornada,
-                        periodo=estado_dia.periodo,
-                        turno="sin registros",
-                        horario=formato_horario(estado_dia.estado, jornada),
-                        minutos_programados=config["duracion_minutos"],
-                        minutos_dentro=0,
-                        minutos_fuera=0,
-                        minutos_permitidos=config["salida_permitida_minutos"],
-                        minutos_exceso=0,
-                        estado="sin registros para turno programado",
-                    ),
-                    estado_dia.estado,
+            if estado_dia.estado in ESTADOS_CON_TURNO:
+                config = TURNOS[estado_dia.estado]
+                vencido = _turno_programado_vencido(jornada, estado_dia.estado, referencia)
+                filas.append(
+                    (
+                        ResumenJornada(
+                            jornada=jornada,
+                            periodo=estado_dia.periodo,
+                            turno="sin registros" if vencido else estado_dia.estado,
+                            horario=formato_horario(estado_dia.estado, jornada),
+                            minutos_programados=config["duracion_minutos"],
+                            minutos_dentro=0,
+                            minutos_fuera=0,
+                            minutos_permitidos=config["salida_permitida_minutos"],
+                            minutos_exceso=0,
+                            estado="sin registros para turno programado" if vencido else "programado",
+                        ),
+                        estado_dia.estado,
+                    )
                 )
-            )
-        elif estado_dia.estado == "libre" and datetime.strptime(jornada, "%Y-%m-%d").date() <= referencia.date():
-            filas.append(
-                (
-                    ResumenJornada(
-                        jornada=jornada,
-                        periodo=estado_dia.periodo,
-                        turno="sin registros",
-                        horario="Libre",
-                        minutos_programados=0,
-                        minutos_dentro=0,
-                        minutos_fuera=0,
-                        minutos_permitidos=0,
-                        minutos_exceso=0,
-                        estado="libre",
-                    ),
-                    estado_dia.estado,
+            elif estado_dia.estado in {"libre", "libre despues de noche"}:
+                filas.append(
+                    (
+                        ResumenJornada(
+                            jornada=jornada,
+                            periodo=estado_dia.periodo,
+                            turno="sin registros",
+                            horario="Libre",
+                            minutos_programados=0,
+                            minutos_dentro=0,
+                            minutos_fuera=0,
+                            minutos_permitidos=0,
+                            minutos_exceso=0,
+                            estado="libre",
+                        ),
+                        estado_dia.estado,
+                    )
                 )
-            )
 
     return filas
 
