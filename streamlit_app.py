@@ -120,6 +120,10 @@ PERFILES_USUARIO = {
     "lina_neonato": "Esposa",
 }
 USUARIOS_APP = list(PERFILES_USUARIO.keys())
+FOTOS_USUARIO = {
+    "andres_pediatra": "/Users/apple/Downloads/liftapp.PNG",
+    "lina_neonato": "/Users/apple/Downloads/5bae64c-ff37-4af4-8368-da0e22d955dd.JPG",
+}
 
 def seleccionar_usuario_inicial():
     st.markdown(
@@ -133,6 +137,10 @@ def seleccionar_usuario_inicial():
           padding: 1.4rem 1.2rem 1.1rem 1.2rem;
           background: rgba(255,255,255,0.03);
           text-align: center;
+        }
+        .selector-usuario-card {
+          text-align: center;
+          padding: 0.6rem 0.4rem 0.2rem 0.4rem;
         }
         .selector-usuario p {
           margin: 0;
@@ -151,12 +159,24 @@ def seleccionar_usuario_inicial():
         unsafe_allow_html=True,
     )
     col_1, col_2 = st.columns(2, gap="large")
-    if col_1.button("andres_pediatra", use_container_width=True):
-        st.session_state["usuario_seleccionado"] = "andres_pediatra"
-        st.rerun()
-    if col_2.button("lina_neonato", use_container_width=True):
-        st.session_state["usuario_seleccionado"] = "lina_neonato"
-        st.rerun()
+    with col_1:
+        st.markdown('<div class="selector-usuario-card">', unsafe_allow_html=True)
+        foto_andres = FOTOS_USUARIO.get("andres_pediatra")
+        if foto_andres and Path(foto_andres).exists():
+            st.image(foto_andres, width=130)
+        if st.button("andres_pediatra", use_container_width=True):
+            st.session_state["usuario_seleccionado"] = "andres_pediatra"
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+    with col_2:
+        st.markdown('<div class="selector-usuario-card">', unsafe_allow_html=True)
+        foto_lina = FOTOS_USUARIO.get("lina_neonato")
+        if foto_lina and Path(foto_lina).exists():
+            st.image(foto_lina, width=130)
+        if st.button("lina_neonato", use_container_width=True):
+            st.session_state["usuario_seleccionado"] = "lina_neonato"
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
 
