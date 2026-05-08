@@ -925,8 +925,9 @@ def guardar_evidencia_registro(
         return None
 
     if foto_bytes:
+        marca_unica = ahora_colombia().strftime("%Y%m%d_%H%M%S_%f")
         base_nombre = (
-            f"evidencia_{registro.fecha}_{registro.hora.replace(':', '')}_{registro.tipo}_{registro.turno}"
+            f"evidencia_{_slug_usuario()}_{registro.fecha}_{registro.hora.replace(':', '')}_{registro.tipo}_{registro.turno}_{marca_unica}"
         )
         foto_nombre, foto_url = guardar_foto_evidencia(base_nombre, foto_bytes)
 
