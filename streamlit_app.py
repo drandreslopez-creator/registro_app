@@ -140,12 +140,15 @@ def seleccionar_usuario_inicial():
         }
         .selector-usuario h1 {
           margin: 0;
-          font-size: 2rem;
-          line-height: 1.15;
+          font-size: 1rem;
+          line-height: 1.25;
+          letter-spacing: 0.02em;
         }
         .selector-usuario-card {
           text-align: center;
           padding: 0.6rem 0.4rem 0.2rem 0.4rem;
+          max-width: 260px;
+          margin: 0 auto;
         }
         .selector-usuario p {
           margin: 0;
@@ -163,12 +166,12 @@ def seleccionar_usuario_inicial():
         """,
         unsafe_allow_html=True,
     )
-    col_1, col_2 = st.columns(2, gap="large")
+    _, col_1, col_2, _ = st.columns([1, 1.2, 1.2, 1], gap="medium")
     with col_1:
         st.markdown('<div class="selector-usuario-card">', unsafe_allow_html=True)
         foto_andres = FOTOS_USUARIO.get("andres_pediatra")
         if foto_andres and Path(foto_andres).exists():
-            st.image(foto_andres, width=130)
+            st.image(foto_andres, width=120)
         if st.button("andres_pediatra", use_container_width=True):
             st.session_state["usuario_seleccionado"] = "andres_pediatra"
             st.rerun()
@@ -177,7 +180,7 @@ def seleccionar_usuario_inicial():
         st.markdown('<div class="selector-usuario-card">', unsafe_allow_html=True)
         foto_lina = FOTOS_USUARIO.get("lina_neonato")
         if foto_lina and Path(foto_lina).exists():
-            st.image(foto_lina, width=130)
+            st.image(foto_lina, width=120)
         if st.button("lina_neonato", use_container_width=True):
             st.session_state["usuario_seleccionado"] = "lina_neonato"
             st.rerun()
