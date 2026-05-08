@@ -125,8 +125,8 @@ def clave_foto_evidencia_actual() -> str:
     return f"evidencia_foto_{version}"
 
 
-def obtener_foto_evidencia_bytes():
-    foto = st.session_state.get(clave_foto_evidencia_actual())
+def obtener_foto_evidencia_bytes(foto_widget=None):
+    foto = foto_widget if foto_widget is not None else st.session_state.get(clave_foto_evidencia_actual())
     if foto is None:
         return None
     try:
@@ -416,10 +416,11 @@ with col_a:
         "Agregar evidencia",
         key="usar_evidencia_rapida",
     )
+    foto_rapida_widget = None
     if usar_evidencia_rapida:
         evidencia_col_1, evidencia_col_2 = st.columns([0.9, 1.1], gap="small")
         with evidencia_col_1:
-            st.camera_input("Foto opcional", key=clave_foto_evidencia_actual())
+            foto_rapida_widget = st.camera_input("Foto opcional", key=clave_foto_evidencia_actual())
         with evidencia_col_2:
             st.text_area(
                 "Observación (opcional)",
@@ -440,7 +441,7 @@ with col_a:
                 guardar_evidencia_registro(
                     registro,
                     ubicacion_texto=st.session_state.get("evidencia_observacion", ""),
-                    foto_bytes=obtener_foto_evidencia_bytes(),
+                    foto_bytes=obtener_foto_evidencia_bytes(foto_rapida_widget),
                 )
             except Exception as exc:
                 st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
@@ -457,7 +458,7 @@ with col_a:
                 guardar_evidencia_registro(
                     registro,
                     ubicacion_texto=st.session_state.get("evidencia_observacion", ""),
-                    foto_bytes=obtener_foto_evidencia_bytes(),
+                    foto_bytes=obtener_foto_evidencia_bytes(foto_rapida_widget),
                 )
             except Exception as exc:
                 st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
