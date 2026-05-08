@@ -324,10 +324,36 @@ def tabla_evidencias(evidencias):
             "Tipo": evidencia.tipo.capitalize(),
             "Turno": evidencia.turno,
             "Ubicacion / referencia": evidencia.ubicacion_texto or "-",
-            "Foto / enlace": evidencia.foto_url or evidencia.foto_nombre or "Sin foto",
+            "Foto": "Ver foto" if (evidencia.foto_url or evidencia.foto_nombre) else "Sin foto",
         }
         for evidencia in evidencias
     ]
+
+
+def render_galeria_evidencias(evidencias):
+    evidencias_con_foto = [
+        evidencia
+        for evidencia in evidencias
+        if (evidencia.foto_url or evidencia.foto_nombre)
+    ]
+    if not evidencias_con_foto:
+        return
+
+    st.caption("Vista rápida de fotos")
+    for indice, evidencia in enumerate(evidencias_con_foto, start=1):
+        titulo = (
+            f"{indice}. {formatear_fecha_visible(evidencia.fecha)} "
+            f"{formatear_hora_visible(evidencia.hora)} | "
+            f"{evidencia.tipo.capitalize()} | {evidencia.turno}"
+        )
+        with st.expander(titulo):
+            if evidencia.ubicacion_texto:
+                st.write(f"Referencia: {evidencia.ubicacion_texto}")
+            if evidencia.foto_url:
+                st.image(evidencia.foto_url, use_container_width=True)
+                st.link_button("Abrir foto", evidencia.foto_url, use_container_width=True)
+            else:
+                st.caption(evidencia.foto_nombre)
 
 
 def etiqueta_registro(registro):
@@ -662,5 +688,6 @@ if registros_vista:
 st.subheader("Evidencias registradas")
 if evidencias_vista:
     st.dataframe(tabla_evidencias(evidencias_vista), use_container_width=True, hide_index=True)
+    render_galeria_evidencias(evidencias_vista)
 else:
     st.info("No hay evidencias guardadas en este filtro.")
