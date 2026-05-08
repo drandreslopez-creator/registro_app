@@ -79,6 +79,7 @@ from app_registro_hospital import (
     calcular_periodo,
     clave_registro,
     construir_fecha_hora_manual,
+    evidencia_corresponde_a_registro,
     eliminar_estado_dia,
     eliminar_registro,
     exportar_html,
@@ -310,7 +311,6 @@ def tabla_resumen(filas_resumen):
 
 
 def tabla_movimientos(registros, evidencias):
-    evidencias_por_clave = {evidencia.registro_clave: evidencia for evidencia in evidencias}
     return [
         {
             "Fecha": formatear_fecha_visible(registro.fecha),
@@ -319,7 +319,7 @@ def tabla_movimientos(registros, evidencias):
             "Turno": registro.turno,
             "Jornada": formatear_fecha_visible(registro.jornada),
             "Detalle": registro.detalle,
-            "Evidencia": "Si" if clave_registro(registro) in evidencias_por_clave else "No",
+            "Evidencia": "Si" if any(evidencia_corresponde_a_registro(evidencia, registro) for evidencia in evidencias) else "No",
             "Periodo": formatear_periodo_visible(registro.periodo),
         }
         for registro in registros
