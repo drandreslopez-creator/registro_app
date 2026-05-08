@@ -468,6 +468,13 @@ def _drive_service():
     return build("drive", "v3", credentials=credentials, cache_discovery=False)
 
 
+def usar_cloudinary() -> bool:
+    return bool(
+        os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip()
+        and os.environ.get("CLOUDINARY_UPLOAD_PRESET", "").strip()
+    )
+
+
 def guardar_foto_evidencia(nombre_base: str, foto_bytes: bytes) -> tuple[str, str]:
     nombre_archivo = f"{nombre_base}.jpg"
 
@@ -479,11 +486,44 @@ def guardar_foto_evidencia(nombre_base: str, foto_bytes: bytes) -> tuple[str, st
     imagen.save(salida, format="JPEG", quality=82, optimize=True)
     salida.seek(0)
 
+    if usar_cloudinary():
+        cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip()
+        upload_preset = os.environ.get("CLOUDINARY_UPLOAD_PRESET", "").strip()
+        asset_folder = os.environ.get("CLOUDINARY_FOLDER", "").strip()
+        try:
+            import requests
+
+            endpoint = f"https://api.cloudinary.com/v1_1/{cloud_name}/image/upload"
+            data = {
+                "upload_preset": upload_preset,
+                "public_id": nombre_base,
+            }
+            if asset_folder:
+                data["folder"] = asset_folder
+            response = requests.post(
+                endpoint,
+                data=data,
+                files={"file": (nombre_archivo, salida.getvalue(), "image/jpeg")},
+                timeout=60,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            foto_url = payload.get("secure_url") or payload.get("url")
+            if not foto_url:
+                raise RuntimeError("Cloudinary no devolvió URL de la imagen.")
+            return nombre_archivo, foto_url
+        except Exception as exc:
+            raise RuntimeError(
+                "No se pudo subir la foto a Cloudinary. "
+                "Revisa cloudinary_cloud_name, cloudinary_upload_preset y el preset sin firma. "
+                f"Detalle: {exc}"
+            ) from exc
+
     if usar_google_sheets():
         carpeta_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip()
         if not carpeta_id:
             raise RuntimeError(
-                "Falta configurar google_drive_folder_id en Streamlit Secrets para guardar fotos en Drive."
+                "Falta configurar Cloudinary o google_drive_folder_id en Streamlit Secrets para guardar fotos."
             )
         try:
             from googleapiclient.http import MediaIoBaseUpload

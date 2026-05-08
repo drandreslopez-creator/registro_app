@@ -41,6 +41,21 @@ def configurar_google_desde_secrets():
     elif "GOOGLE_DRIVE_FOLDER_ID" in secrets:
         os.environ["GOOGLE_DRIVE_FOLDER_ID"] = str(secrets["GOOGLE_DRIVE_FOLDER_ID"])
 
+    if "cloudinary_cloud_name" in secrets:
+        os.environ["CLOUDINARY_CLOUD_NAME"] = str(secrets["cloudinary_cloud_name"])
+    elif "CLOUDINARY_CLOUD_NAME" in secrets:
+        os.environ["CLOUDINARY_CLOUD_NAME"] = str(secrets["CLOUDINARY_CLOUD_NAME"])
+
+    if "cloudinary_upload_preset" in secrets:
+        os.environ["CLOUDINARY_UPLOAD_PRESET"] = str(secrets["cloudinary_upload_preset"])
+    elif "CLOUDINARY_UPLOAD_PRESET" in secrets:
+        os.environ["CLOUDINARY_UPLOAD_PRESET"] = str(secrets["CLOUDINARY_UPLOAD_PRESET"])
+
+    if "cloudinary_folder" in secrets:
+        os.environ["CLOUDINARY_FOLDER"] = str(secrets["cloudinary_folder"])
+    elif "CLOUDINARY_FOLDER" in secrets:
+        os.environ["CLOUDINARY_FOLDER"] = str(secrets["CLOUDINARY_FOLDER"])
+
 
 configurar_google_desde_secrets()
 
@@ -70,6 +85,7 @@ from app_registro_hospital import (
     resumen_total_jornadas,
     resumir_periodo,
     turno_actual_por_hora,
+    usar_cloudinary,
     usar_google_sheets,
 )
 
@@ -359,8 +375,15 @@ if st.session_state.get("limpiar_evidencia_pendiente"):
 
 with st.expander("Evidencia opcional para el proximo registro"):
     st.caption("Puedes adjuntar una foto y una referencia de ubicacion para dejar soporte adicional.")
-    if not os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip():
-        st.warning("Las fotos aun no estan configuradas para guardarse en Google Drive. Falta el ID de carpeta.")
+    if usar_cloudinary():
+        st.caption("Las fotos se subirán a Cloudinary.")
+    elif os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip():
+        st.caption("Las fotos intentarán guardarse en Google Drive.")
+    else:
+        st.warning(
+            "Las fotos aún no están configuradas para nube. "
+            "Falta Cloudinary o Google Drive."
+        )
     st.text_input(
         "Ubicacion / referencia",
         key="evidencia_ubicacion",
