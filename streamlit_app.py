@@ -218,59 +218,69 @@ def estados_filtrados(estados, periodo_filtro: str):
     return [estado for estado in estados if estado.periodo == periodo_filtro]
 
 
-def csv_bytes(registros, filas_resumen=None, evidencias=None) -> bytes:
+def csv_bytes(registros, filas_resumen=None, evidencias=None, periodo_filtro=None, usuario_label=None) -> bytes:
     salida = StringIO()
     writer = csv.writer(salida)
-    writer.writerow(["fecha", "hora", "tipo", "detalle", "periodo", "turno", "jornada"])
-    for registro in registros:
-        writer.writerow(
-            [
-                registro.fecha,
-                registro.hora,
-                registro.tipo,
-                registro.detalle,
-                registro.periodo,
-                registro.turno,
-                registro.jornada,
-            ]
-        )
-    if registros:
-        total_movimientos = len(registros)
-        total_entradas = sum(1 for registro in registros if registro.tipo == "entrada")
-        total_salidas = sum(1 for registro in registros if registro.tipo == "salida")
-        total_libres = sum(1 for registro in registros if registro.tipo == "libre")
-        total_con_evidencia = 0
-        if evidencias is not None:
-            total_con_evidencia = sum(
-                1
-                for registro in registros
-                if any(evidencia_corresponde_a_registro(evidencia, registro) for evidencia in evidencias)
-            )
-        primer_registro = min(registros, key=lambda item: item.fecha_hora)
-        ultimo_registro = max(registros, key=lambda item: item.fecha_hora)
+    writer.writerow(["REPORTE DE MOVIMIENTOS"])
+    writer.writerow(["Usuario", usuario_label or "-"])
+    writer.writerow(["Periodo", formatear_periodo_visible(periodo_filtro) if periodo_filtro else TODOS_LOS_PERIODOS])
+    writer.writerow(["Generado", ahora_colombia().strftime("%d-%m-%y %H:%M")])
 
-        writer.writerow([])
-        writer.writerow(["RESUMEN_MOVIMIENTOS"])
-        writer.writerow(["movimientos_registrados", total_movimientos])
-        writer.writerow(["entradas", total_entradas])
-        writer.writerow(["salidas", total_salidas])
-        writer.writerow(["dias_libres_marcados", total_libres])
-        writer.writerow(["movimientos_con_evidencia", total_con_evidencia])
-        writer.writerow(["primer_movimiento", f"{primer_registro.fecha} {formatear_hora_visible(primer_registro.hora)}"])
-        writer.writerow(["ultimo_movimiento", f"{ultimo_registro.fecha} {formatear_hora_visible(ultimo_registro.hora)}"])
+    total_movimientos = len(registros)
+    total_entradas = sum(1 for registro in registros if registro.tipo == "entrada")
+    total_salidas = sum(1 for registro in registros if registro.tipo == "salida")
+    total_libres = sum(1 for registro in registros if registro.tipo == "libre")
+    total_con_evidencia = 0
+    if evidencias is not None:
+        total_con_evidencia = sum(
+            1
+            for registro in registros
+            if any(evidencia_corresponde_a_registro(evidencia, registro) for evidencia in evidencias)
+        )
+
+    writer.writerow([])
+    writer.writerow(["RESUMEN CLAVE"])
+    writer.writerow(["Movimientos registrados", total_movimientos])
+    writer.writerow(["Entradas", total_entradas])
+    writer.writerow(["Salidas", total_salidas])
+    writer.writerow(["Dias libres marcados", total_libres])
+    writer.writerow(["Movimientos con evidencia", total_con_evidencia])
 
     if filas_resumen:
         total = resumen_total_jornadas([item for item, _ in filas_resumen])
-        writer.writerow([])
-        writer.writerow(["RESUMEN_OPERATIVO"])
-        writer.writerow(["turnos_calculados", total.turno])
-        writer.writerow(["horas_programadas", horas_plan_total_texto(total.minutos_programados)])
-        writer.writerow(["acumulado_trabajado", minutos_a_texto(total.minutos_dentro)])
-        writer.writerow(["tiempo_dentro", minutos_a_texto(total.minutos_dentro)])
-        writer.writerow(["tiempo_fuera", minutos_a_texto(total.minutos_fuera)])
-        writer.writerow(["salida_permitida", minutos_a_texto(total.minutos_permitidos)])
-        writer.writerow(["exceso_total", minutos_a_texto(total.minutos_exceso)])
-        writer.writerow(["estado_total", total.estado])
+        writer.writerow(["Turnos calculados", total.turno])
+        writer.writerow(["Horas programadas", horas_plan_total_texto(total.minutos_programados)])
+        writer.writerow(["Tiempo trabajado dentro", minutos_a_texto(total.minutos_dentro)])
+        writer.writerow(["Tiempo por fuera", minutos_a_texto(total.minutos_fuera)])
+        writer.writerow(["Tiempo permitido", minutos_a_texto(total.minutos_permitidos)])
+        writer.writerow(["Exceso total", minutos_a_texto(total.minutos_exceso)])
+        writer.writerow(["Estado general", total.estado])
+
+    if registros:
+        primer_registro = min(registros, key=lambda item: item.fecha_hora)
+        ultimo_registro = max(registros, key=lambda item: item.fecha_hora)
+        writer.writerow(["Primer movimiento", f"{formatear_fecha_visible(primer_registro.fecha)} {formatear_hora_visible(primer_registro.hora)}"])
+        writer.writerow(["Ultimo movimiento", f"{formatear_fecha_visible(ultimo_registro.fecha)} {formatear_hora_visible(ultimo_registro.hora)}"])
+
+    writer.writerow([])
+    writer.writerow(["MOVIMIENTOS REGISTRADOS"])
+    writer.writerow(["Fecha", "Hora", "Tipo", "Turno", "Jornada", "Detalle", "Evidencia", "Periodo"])
+    for registro in registros:
+        tiene_evidencia = "Si" if evidencias is not None and any(
+            evidencia_corresponde_a_registro(evidencia, registro) for evidencia in evidencias
+        ) else "No"
+        writer.writerow(
+            [
+                formatear_fecha_visible(registro.fecha),
+                formatear_hora_visible(registro.hora),
+                registro.tipo.capitalize(),
+                registro.turno,
+                formatear_fecha_visible(registro.jornada),
+                registro.detalle or "-",
+                tiene_evidencia,
+                formatear_periodo_visible(registro.periodo),
+            ]
+        )
     return salida.getvalue().encode("utf-8")
 
 
@@ -910,7 +920,7 @@ exp_1, exp_2 = st.columns(2)
 with exp_1:
     st.download_button(
         "Descargar CSV",
-        data=csv_bytes(registros_vista, filas_resumen, evidencias_vista),
+        data=csv_bytes(registros_vista, filas_resumen, evidencias_vista, periodo_filtro, usuario_label),
         file_name="historial_filtrado.csv",
         mime="text/csv",
         use_container_width=True,
