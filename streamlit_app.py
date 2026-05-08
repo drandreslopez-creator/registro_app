@@ -113,40 +113,49 @@ PERFILES_USUARIO = {
 }
 USUARIOS_APP = list(PERFILES_USUARIO.keys())
 
-st.markdown(
-    """
-    <style>
-    .usuario-box {
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 0.85rem 1rem 0.35rem 1rem;
-      margin-bottom: 0.8rem;
-      background: rgba(255,255,255,0.02);
-    }
-    .usuario-box p {
-      margin: 0;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+def seleccionar_usuario_inicial():
+    st.markdown(
+        """
+        <style>
+        .selector-usuario {
+          max-width: 720px;
+          margin: 3rem auto 1rem auto;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 22px;
+          padding: 1.4rem 1.2rem 1.1rem 1.2rem;
+          background: rgba(255,255,255,0.03);
+          text-align: center;
+        }
+        .selector-usuario p {
+          margin: 0;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <div class="selector-usuario">
+          <p><strong>Selecciona el usuario para entrar</strong></p>
+          <p style="opacity:.8; margin-top:.35rem;">Cada perfil guarda sus turnos, estados y evidencias por separado.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    col_1, col_2 = st.columns(2, gap="large")
+    if col_1.button("andres_pediatra", use_container_width=True):
+        st.session_state["usuario_seleccionado"] = "andres_pediatra"
+        st.rerun()
+    if col_2.button("lina_neonato", use_container_width=True):
+        st.session_state["usuario_seleccionado"] = "lina_neonato"
+        st.rerun()
+    st.stop()
 
-st.markdown(
-    """
-    <div class="usuario-box">
-      <p><strong>Selecciona el usuario antes de registrar turnos</strong></p>
-      <p style="opacity:.78;">Cada perfil guarda su propia información por separado.</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
-usuario_label = st.radio(
-    "Usuario",
-    options=USUARIOS_APP,
-    horizontal=True,
-    label_visibility="collapsed",
-)
+if "usuario_seleccionado" not in st.session_state:
+    seleccionar_usuario_inicial()
+
+usuario_label = st.session_state["usuario_seleccionado"]
 os.environ["APP_USER"] = PERFILES_USUARIO[usuario_label]
 
 
@@ -502,6 +511,9 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+if st.sidebar.button("Cambiar usuario", use_container_width=True):
+    st.session_state.pop("usuario_seleccionado", None)
+    st.rerun()
 st.title("INGRESO HRS")
 st.caption(f"Usuario actual: {usuario_label}")
 if not usar_google_sheets():
