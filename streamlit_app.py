@@ -606,6 +606,8 @@ evidencias_vista = [
     for evidencia in evidencias
     if periodo_filtro == TODOS_LOS_PERIODOS or evidencia.periodo == periodo_filtro
 ]
+claves_registros_vista = {clave_registro(registro) for registro in registros_vista}
+evidencias_vista = [evidencia for evidencia in evidencias_vista if evidencia.registro_clave in claves_registros_vista]
 resumen_total = resumir_periodo(registros_vista)
 filas_resumen = resumenes_programado_vs_real(registros_vista, estados_vista)
 

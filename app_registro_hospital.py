@@ -691,6 +691,8 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
     if not eliminado:
         return False
 
+    clave_objetivo = clave_registro(registro_objetivo)
+
     if usar_google_sheets():
         hoja = _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
         _reescribir_worksheet(
@@ -709,6 +711,7 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
                 for registro in restantes
             ],
         )
+        eliminar_evidencias_por_registro_clave(clave_objetivo)
         return True
 
     with DATA_FILE.open("w", newline="", encoding="utf-8") as file:
@@ -727,6 +730,7 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
                 ]
             )
 
+    eliminar_evidencias_por_registro_clave(clave_objetivo)
     crear_copia_seguridad()
     return True
 
@@ -910,6 +914,63 @@ def leer_evidencias() -> list[EvidenciaRegistro]:
                 )
             )
     return evidencias
+
+
+def eliminar_evidencias_por_registro_clave(registro_clave: str) -> int:
+    if not registro_clave:
+        return 0
+
+    evidencias = leer_evidencias()
+    restantes = [evidencia for evidencia in evidencias if evidencia.registro_clave != registro_clave]
+    eliminadas = len(evidencias) - len(restantes)
+
+    if eliminadas == 0:
+        return 0
+
+    if usar_google_sheets():
+        hoja = _obtener_worksheet("evidencias", COLUMNAS_EVIDENCIAS)
+        _reescribir_worksheet(
+            hoja,
+            COLUMNAS_EVIDENCIAS,
+            [
+                [
+                    evidencia.registro_clave,
+                    evidencia.fecha,
+                    evidencia.hora,
+                    evidencia.tipo,
+                    evidencia.detalle,
+                    evidencia.periodo,
+                    evidencia.turno,
+                    evidencia.jornada,
+                    evidencia.ubicacion_texto,
+                    evidencia.foto_nombre,
+                    evidencia.foto_url,
+                ]
+                for evidencia in restantes
+            ],
+        )
+        return eliminadas
+
+    with EVIDENCE_FILE.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(COLUMNAS_EVIDENCIAS)
+        for evidencia in restantes:
+            writer.writerow(
+                [
+                    evidencia.registro_clave,
+                    evidencia.fecha,
+                    evidencia.hora,
+                    evidencia.tipo,
+                    evidencia.detalle,
+                    evidencia.periodo,
+                    evidencia.turno,
+                    evidencia.jornada,
+                    evidencia.ubicacion_texto,
+                    evidencia.foto_nombre,
+                    evidencia.foto_url,
+                ]
+            )
+    return eliminadas
 
 
 def crear_copia_seguridad():
