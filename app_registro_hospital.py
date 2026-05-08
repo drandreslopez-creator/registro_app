@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from functools import lru_cache
+import hashlib
 from html import escape
 from io import BytesIO
 import json
@@ -13,6 +14,7 @@ from pathlib import Path
 import re
 import shutil
 import time as time_module
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 
@@ -475,6 +477,14 @@ def usar_cloudinary() -> bool:
     )
 
 
+def cloudinary_puede_borrar() -> bool:
+    return bool(
+        os.environ.get("CLOUDINARY_CLOUD_NAME", "").strip()
+        and os.environ.get("CLOUDINARY_API_KEY", "").strip()
+        and os.environ.get("CLOUDINARY_API_SECRET", "").strip()
+    )
+
+
 def guardar_foto_evidencia(nombre_base: str, foto_bytes: bytes) -> tuple[str, str]:
     nombre_archivo = f"{nombre_base}.jpg"
 
@@ -559,6 +569,55 @@ def guardar_foto_evidencia(nombre_base: str, foto_bytes: bytes) -> tuple[str, st
     destino = EVIDENCE_DIR / nombre_archivo
     destino.write_bytes(salida.getvalue())
     return nombre_archivo, str(destino)
+
+
+def _cloudinary_public_id_desde_evidencia(evidencia: EvidenciaRegistro) -> str:
+    nombre_base = Path(evidencia.foto_nombre or "").stem
+    if not nombre_base:
+        ruta = urlparse(evidencia.foto_url or "").path
+        if "/upload/" in ruta:
+            despues = ruta.split("/upload/", 1)[1]
+            partes = despues.split("/")
+            while partes and re.fullmatch(r"v\d+", partes[0]):
+                partes.pop(0)
+            if partes:
+                nombre_base = "/".join(partes)
+                nombre_base = re.sub(r"\.[A-Za-z0-9]+$", "", nombre_base)
+    carpeta = os.environ.get("CLOUDINARY_FOLDER", "").strip().strip("/")
+    if nombre_base and carpeta and not nombre_base.startswith(f"{carpeta}/"):
+        return f"{carpeta}/{nombre_base}"
+    return nombre_base
+
+
+def borrar_archivo_evidencia(evidencia: EvidenciaRegistro) -> None:
+    if evidencia.foto_url and "res.cloudinary.com" in evidencia.foto_url and cloudinary_puede_borrar():
+        public_id = _cloudinary_public_id_desde_evidencia(evidencia)
+        if public_id:
+            import requests
+
+            cloud_name = os.environ["CLOUDINARY_CLOUD_NAME"].strip()
+            api_key = os.environ["CLOUDINARY_API_KEY"].strip()
+            api_secret = os.environ["CLOUDINARY_API_SECRET"].strip()
+            timestamp = str(int(time_module.time()))
+            firma_base = f"public_id={public_id}&timestamp={timestamp}{api_secret}"
+            signature = hashlib.sha1(firma_base.encode("utf-8")).hexdigest()
+            response = requests.post(
+                f"https://api.cloudinary.com/v1_1/{cloud_name}/image/destroy",
+                data={
+                    "public_id": public_id,
+                    "timestamp": timestamp,
+                    "api_key": api_key,
+                    "signature": signature,
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+        return
+
+    if evidencia.foto_url and evidencia.foto_url.startswith("/"):
+        ruta = Path(evidencia.foto_url)
+        if ruta.exists():
+            ruta.unlink()
 
 
 def normalizar_archivo_existente():
@@ -921,11 +980,19 @@ def eliminar_evidencias_por_registro_clave(registro_clave: str) -> int:
         return 0
 
     evidencias = leer_evidencias()
+    a_eliminar = [evidencia for evidencia in evidencias if evidencia.registro_clave == registro_clave]
     restantes = [evidencia for evidencia in evidencias if evidencia.registro_clave != registro_clave]
     eliminadas = len(evidencias) - len(restantes)
 
     if eliminadas == 0:
         return 0
+
+    for evidencia in a_eliminar:
+        try:
+            borrar_archivo_evidencia(evidencia)
+        except Exception:
+            # Keep deleting the registry rows even if the external file cleanup fails.
+            pass
 
     if usar_google_sheets():
         hoja = _obtener_worksheet("evidencias", COLUMNAS_EVIDENCIAS)

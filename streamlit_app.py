@@ -56,6 +56,16 @@ def configurar_google_desde_secrets():
     elif "CLOUDINARY_FOLDER" in secrets:
         os.environ["CLOUDINARY_FOLDER"] = str(secrets["CLOUDINARY_FOLDER"])
 
+    if "cloudinary_api_key" in secrets:
+        os.environ["CLOUDINARY_API_KEY"] = str(secrets["cloudinary_api_key"])
+    elif "CLOUDINARY_API_KEY" in secrets:
+        os.environ["CLOUDINARY_API_KEY"] = str(secrets["CLOUDINARY_API_KEY"])
+
+    if "cloudinary_api_secret" in secrets:
+        os.environ["CLOUDINARY_API_SECRET"] = str(secrets["cloudinary_api_secret"])
+    elif "CLOUDINARY_API_SECRET" in secrets:
+        os.environ["CLOUDINARY_API_SECRET"] = str(secrets["CLOUDINARY_API_SECRET"])
+
 
 configurar_google_desde_secrets()
 
