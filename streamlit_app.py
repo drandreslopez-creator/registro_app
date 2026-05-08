@@ -535,11 +535,12 @@ col_a, col_b = st.columns([1, 1], gap="small")
 
 with col_a:
     st.subheader("Registro rápido")
+    opciones_turno_rapido = ["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde"]
     turno_rapido = st.selectbox(
         "Turno actual",
-        options=["12h dia", "12h noche", "5h manana"],
-        index=["12h dia", "12h noche", "5h manana"].index(turno_actual_por_hora())
-        if turno_actual_por_hora() in ["12h dia", "12h noche", "5h manana"]
+        options=opciones_turno_rapido,
+        index=opciones_turno_rapido.index(turno_actual_por_hora())
+        if turno_actual_por_hora() in opciones_turno_rapido
         else 0,
     )
     usar_evidencia_rapida = st.checkbox(
@@ -623,7 +624,7 @@ with col_a:
         estado_fecha = st.date_input("Fecha a programar", value=datetime.now().date(), format="DD-MM-YYYY")
         estado_tipo = st.selectbox(
             "Estado programado",
-            options=["12h dia", "12h noche", "5h manana", "libre", "libre despues de noche"],
+            options=["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "libre", "libre despues de noche"],
         )
         estado_detalle = st.text_input("Detalle del estado", value="", placeholder="Opcional")
         guardar_estado = st.form_submit_button("Guardar estado del día", use_container_width=True)
@@ -658,7 +659,7 @@ with col_b:
 
     c3, c4 = st.columns(2)
     manual_tipo = c3.selectbox("Tipo", options=["entrada", "salida", "libre"])
-    manual_turno = c4.selectbox("Turno", options=["12h dia", "12h noche", "5h manana", "libre"])
+    manual_turno = c4.selectbox("Turno", options=["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "libre"])
     manual_detalle = st.text_input("Detalle", value="")
     guardar_manual = st.button("Guardar manual", use_container_width=True)
 

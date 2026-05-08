@@ -47,6 +47,8 @@ ESTADOS_DIA = [
     "12h dia",
     "12h noche",
     "5h manana",
+    "6h manana",
+    "6h tarde",
     "libre",
     "libre despues de noche",
     "sin definir",
@@ -70,6 +72,18 @@ TURNOS = {
         "inicio": (7, 0),
         "fin": (12, 0),
     },
+    "6h manana": {
+        "duracion_minutos": 6 * 60,
+        "salida_permitida_minutos": 0,
+        "inicio": (7, 0),
+        "fin": (13, 0),
+    },
+    "6h tarde": {
+        "duracion_minutos": 6 * 60,
+        "salida_permitida_minutos": 0,
+        "inicio": (13, 0),
+        "fin": (19, 0),
+    },
     "libre": {
         "duracion_minutos": 0,
         "salida_permitida_minutos": 0,
@@ -83,7 +97,7 @@ TURNOS = {
         "fin": None,
     },
 }
-ESTADOS_CON_TURNO = {"12h dia", "12h noche", "5h manana"}
+ESTADOS_CON_TURNO = {"12h dia", "12h noche", "5h manana", "6h manana", "6h tarde"}
 
 tk = None
 filedialog = None
@@ -1244,7 +1258,7 @@ def periodos_combinados(registros: list[Registro], estados: list[EstadoDia]) -> 
 def agrupar_resumenes_jornada(registros: list[Registro]) -> list[ResumenJornada]:
     grupos: dict[tuple[str, str], list[Registro]] = defaultdict(list)
     for registro in registros:
-        if registro.turno not in {"12h dia", "12h noche", "5h manana"}:
+        if registro.turno not in {"12h dia", "12h noche", "5h manana", "6h manana", "6h tarde"}:
             continue
         grupos[(registro.turno, registro.jornada)].append(registro)
 
@@ -1337,12 +1351,14 @@ def _turno_programado_vencido(fecha: str, estado_programado: str, referencia: da
 def _orden_estado_turno(valor: str) -> int:
     orden = {
         "5h manana": 0,
-        "12h dia": 1,
-        "12h noche": 2,
-        "libre despues de noche": 3,
-        "libre": 4,
-        "sin definir": 5,
-        "sin programar": 6,
+        "6h manana": 1,
+        "6h tarde": 2,
+        "12h dia": 3,
+        "12h noche": 4,
+        "libre despues de noche": 5,
+        "libre": 6,
+        "sin definir": 7,
+        "sin programar": 8,
     }
     return orden.get(valor, 99)
 
@@ -1705,7 +1721,7 @@ class AppRegistro:
         ttk.Combobox(
             rapido_frame,
             textvariable=self.turno_rapido_var,
-            values=("12h dia", "12h noche", "5h manana"),
+            values=("12h dia", "12h noche", "5h manana", "6h manana", "6h tarde"),
             state="readonly",
             width=14,
         ).pack(side="left", padx=(0, 14))
@@ -1752,7 +1768,7 @@ class AppRegistro:
         ttk.Combobox(
             manual_frame,
             textvariable=self.manual_turno_var,
-            values=("12h dia", "12h noche", "5h manana", "libre"),
+            values=("12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "libre"),
             state="readonly",
             width=12,
         ).grid(row=1, column=3, sticky="w", padx=(0, 8))
