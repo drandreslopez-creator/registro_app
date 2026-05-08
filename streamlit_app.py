@@ -85,7 +85,9 @@ from app_registro_hospital import (
     eliminar_estado_dia,
     eliminar_registro,
     exportar_html,
+    formatear_mes_calendario,
     formatear_hora_visible,
+    generar_disponibilidad_mensual_docx,
     guardar_evidencia_registro,
     guardar_registro,
     guardar_registro_en_fecha,
@@ -93,8 +95,11 @@ from app_registro_hospital import (
     leer_estados_dia,
     leer_evidencias,
     leer_registros,
+    meses_disponibilidad_mensual,
     minutos_a_texto,
+    nombre_archivo_disponibilidad,
     periodos_combinados,
+    perfil_disponibilidad_actual,
     resumenes_programado_vs_real,
     resumen_total_jornadas,
     resumir_periodo,
@@ -923,3 +928,38 @@ if evidencias_vista:
     render_galeria_evidencias(evidencias_vista)
 else:
     st.info("No hay evidencias guardadas en este filtro.")
+
+st.subheader("Disponibilidad mensual")
+perfil_disponibilidad = perfil_disponibilidad_actual()
+if perfil_disponibilidad is None:
+    st.info("La plantilla mensual de disponibilidad para este usuario la configuramos cuando me compartas su formato.")
+else:
+    meses_disponibles = meses_disponibilidad_mensual(estados)
+    if meses_disponibles:
+        mes_actual = ahora_colombia().strftime("%Y-%m")
+        mes_por_defecto = mes_actual if mes_actual in meses_disponibles else meses_disponibles[-1]
+        col_doc_1, col_doc_2 = st.columns([2, 1], gap="small")
+        with col_doc_1:
+            mes_disponibilidad = st.selectbox(
+                "Mes calendario para disponibilidad",
+                options=meses_disponibles,
+                index=meses_disponibles.index(mes_por_defecto),
+                format_func=formatear_mes_calendario,
+                key="mes_disponibilidad_docx",
+            )
+        with col_doc_2:
+            st.caption("Este formato es por mes calendario, no por periodo 21 al 20.")
+
+        try:
+            disponibilidad_docx = generar_disponibilidad_mensual_docx(estados, mes_disponibilidad)
+            st.download_button(
+                "Descargar disponibilidad mensual (.docx)",
+                data=disponibilidad_docx,
+                file_name=nombre_archivo_disponibilidad(mes_disponibilidad),
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True,
+            )
+        except ValueError as exc:
+            st.info(str(exc))
+    else:
+        st.info("Aún no hay estados programados para generar una disponibilidad mensual.")

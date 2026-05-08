@@ -105,10 +105,78 @@ messagebox = None
 ttk = None
 GOOGLE_WORKSHEETS_INICIALIZADAS: set[tuple[str, str]] = set()
 GOOGLE_WORKSHEET_CACHE: dict[tuple[str, str], object] = {}
+MESES_ES = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+]
+DIAS_SEMANA_ABREV_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+PERFILES_DISPONIBILIDAD = {
+    "Andres": {
+        "ciudad": "Sogamoso",
+        "destinatarios": [
+            ("Doctores", False),
+            ("CAROLINA VARGAS JAIMES", True),
+            ("Líder de Pediatría", False),
+            ("ZULMA CRISTINA MONTAÑA MARTÍNEZ", True),
+            ("Subgerente Científica", False),
+            ("HOSPITAL REGIONAL DE SOGAMOSO E.S.E.", True),
+        ],
+        "saludo": "Cordial saludo,",
+        "introduccion": (
+            "Por medio del presente me permito presentar mi disponibilidad para el mes de "
+            "{mes} del presente año de la siguiente manera:"
+        ),
+        "cierre": "Quedo atento a los comentarios.",
+        "despedida": "Cordialmente,",
+        "firma": [
+            ("ANDRÉS ROBERTO LÓPEZ RUIZ", True),
+            ("Médico Especialista en Pediatría", False),
+            ("Contratista", False),
+            ("HOSPITAL REGIONAL DE SOGAMOSO E.S.E.", True),
+        ],
+    }
+    ,
+    "Esposa": {
+        "ciudad": "Sogamoso",
+        "destinatarios": [
+            ("Doctora", False),
+            ("ZULMA CRISTINA MONTAÑA MARTÍNEZ", True),
+            ("Subgerente Científica", False),
+            ("HOSPITAL REGIONAL DE SOGAMOSO E.S.E.", True),
+        ],
+        "saludo": "Cordial saludo,",
+        "introduccion": (
+            "Por medio del presente me permito presentar mi disponibilidad para el mes de "
+            "{mes} del presente año de la siguiente manera:"
+        ),
+        "cierre": "Quedo atento a los comentarios.",
+        "despedida": "Cordialmente,",
+        "firma": [
+            ("LINA MARIA OSORIO REYES", True),
+            ("Médico Especialista en Neonatología", False),
+            ("Contratista", False),
+            ("HOSPITAL REGIONAL DE SOGAMOSO E.S.E.", True),
+        ],
+    },
+}
 
 
 def usuario_actual() -> str:
     return (os.environ.get("APP_USER", USUARIO_PREDETERMINADO) or USUARIO_PREDETERMINADO).strip()
+
+
+def perfil_disponibilidad_actual() -> dict | None:
+    return PERFILES_DISPONIBILIDAD.get(usuario_actual())
 
 
 def _slug_usuario(usuario: str | None = None) -> str:
@@ -282,6 +350,20 @@ def formatear_hora_visible(hora: str) -> str:
     if len(hora) >= 5:
         return hora[:5]
     return hora
+
+
+def clave_mes_calendario(fecha_base: date) -> str:
+    return fecha_base.strftime("%Y-%m")
+
+
+def formatear_mes_calendario(clave_mes: str) -> str:
+    anio, mes = clave_mes.split("-")
+    return f"{MESES_ES[int(mes) - 1].capitalize()} {anio}"
+
+
+def formatear_mes_disponibilidad(clave_mes: str) -> str:
+    anio, mes = clave_mes.split("-")
+    return f"{MESES_ES[int(mes) - 1]} de {anio}"
 
 
 def parsear_fecha_hora_registro(fecha: str, hora: str) -> datetime:
@@ -1469,6 +1551,193 @@ def leer_estados_dia() -> list[EstadoDia]:
 
     estados.sort(key=lambda item: item.fecha)
     return estados
+
+
+def meses_disponibilidad_mensual(estados: list[EstadoDia]) -> list[str]:
+    meses = sorted(
+        {
+            clave_mes_calendario(item.fecha_base)
+            for item in estados
+            if item.estado != "sin definir"
+        }
+    )
+    return meses
+
+
+def estados_mes_calendario(estados: list[EstadoDia], clave_mes: str) -> list[EstadoDia]:
+    return [
+        item
+        for item in estados
+        if clave_mes_calendario(item.fecha_base) == clave_mes and item.estado != "sin definir"
+    ]
+
+
+def _rango_turno_disponibilidad(estado: str) -> str:
+    rangos = {
+        "12h dia": "7:00 a.m. - 7:00 p.m.",
+        "12h noche": "7:00 p.m. - 7:00 a.m.",
+        "5h manana": "7:00 a.m. - 12:00 p.m.",
+        "6h manana": "7:00 a.m. - 1:00 p.m.",
+        "6h tarde": "1:00 p.m. - 7:00 p.m.",
+    }
+    return rangos.get(estado, "")
+
+
+def _sufijo_turno_disponibilidad(estado: str) -> str:
+    sufijos = {
+        "12h dia": "DÍA",
+        "12h noche": "NOCHE",
+        "5h manana": "MAÑANA",
+        "6h manana": "MAÑANA",
+        "6h tarde": "TARDE",
+    }
+    return sufijos.get(estado, estado.upper())
+
+
+def _expandir_servicio_disponibilidad(detalle: str) -> str:
+    texto = detalle.strip().upper()
+    if not texto:
+        return ""
+    reemplazos = {
+        "HX": "HOSPITALIZACIÓN",
+        "HOSP": "HOSPITALIZACIÓN",
+        "HOSPITALIZACION": "HOSPITALIZACIÓN",
+        "URG": "URGENCIAS",
+        "UCIN": "UCIN",
+    }
+    if texto in reemplazos:
+        return reemplazos[texto]
+    return texto
+
+
+def descripcion_disponibilidad_estado(estado: str, detalle: str) -> str:
+    detalle_limpio = detalle.strip()
+    if not detalle_limpio:
+        return {
+            "12h dia": "TURNO DÍA",
+            "12h noche": "TURNO NOCHE",
+            "5h manana": "TURNO MAÑANA",
+            "6h manana": "TURNO MAÑANA",
+            "6h tarde": "TURNO TARDE",
+        }.get(estado, estado.upper())
+
+    texto = _expandir_servicio_disponibilidad(detalle_limpio)
+    if " " in texto or any(palabra in texto for palabra in ("DÍA", "NOCHE", "MAÑANA", "TARDE")):
+        return texto
+    return f"{texto} {_sufijo_turno_disponibilidad(estado)}"
+
+
+def lineas_disponibilidad_mensual(estados: list[EstadoDia], clave_mes: str) -> list[str]:
+    candidatos = [
+        item
+        for item in estados_mes_calendario(estados, clave_mes)
+        if item.estado in ESTADOS_CON_TURNO
+    ]
+    candidatos.sort(key=lambda item: (item.fecha, _orden_estado_turno(item.estado), item.detalle))
+
+    lineas: list[str] = []
+    fecha_previa = None
+    for item in candidatos:
+        fecha_base = item.fecha_base
+        prefijo = ""
+        if fecha_previa != item.fecha:
+            prefijo = f"{fecha_base.day} {DIAS_SEMANA_ABREV_ES[fecha_base.weekday()]} "
+        rango = _rango_turno_disponibilidad(item.estado)
+        descripcion = descripcion_disponibilidad_estado(item.estado, item.detalle)
+        lineas.append(f"{prefijo}{rango} {descripcion}".strip())
+        fecha_previa = item.fecha
+    return lineas
+
+
+def nombre_archivo_disponibilidad(clave_mes: str) -> str:
+    anio, mes = clave_mes.split("-")
+    mes_texto = MESES_ES[int(mes) - 1]
+    return f"disponibilidad_{mes_texto}_{anio}.docx"
+
+
+def generar_disponibilidad_mensual_docx(estados: list[EstadoDia], clave_mes: str) -> bytes:
+    perfil = perfil_disponibilidad_actual()
+    if perfil is None:
+        raise ValueError("Este usuario todavía no tiene una plantilla de disponibilidad configurada.")
+
+    lineas = lineas_disponibilidad_mensual(estados, clave_mes)
+    if not lineas:
+        raise ValueError("No hay turnos programados en ese mes para generar la disponibilidad.")
+
+    try:
+        from docx import Document
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.shared import Cm, Pt
+    except Exception as exc:
+        raise RuntimeError("No se pudo cargar python-docx para generar el archivo Word.") from exc
+
+    ahora = ahora_colombia()
+    anio, mes = clave_mes.split("-")
+    mes_texto = MESES_ES[int(mes) - 1]
+
+    doc = Document()
+    section = doc.sections[0]
+    section.top_margin = Cm(2.54)
+    section.bottom_margin = Cm(2.54)
+    section.left_margin = Cm(2.54)
+    section.right_margin = Cm(2.54)
+
+    estilo_normal = doc.styles["Normal"]
+    estilo_normal.font.name = "Arial"
+    estilo_normal.font.size = Pt(11)
+
+    def agregar_parrafo(texto: str = "", bold: bool = False):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_before = Pt(0)
+        p.paragraph_format.space_after = Pt(0)
+        run = p.add_run(texto)
+        run.font.name = "Arial"
+        run.font.size = Pt(11)
+        run.bold = bold
+        return p
+
+    agregar_parrafo(
+        f"{perfil['ciudad']} {ahora.day} de {MESES_ES[ahora.month - 1]} de {ahora.year}"
+    )
+    agregar_parrafo()
+    for texto, bold in perfil["destinatarios"]:
+        agregar_parrafo(texto, bold=bold)
+    agregar_parrafo()
+
+    asunto = doc.add_paragraph()
+    asunto.paragraph_format.space_before = Pt(0)
+    asunto.paragraph_format.space_after = Pt(0)
+    run_asunto_1 = asunto.add_run("Asunto: ")
+    run_asunto_1.bold = True
+    run_asunto_1.font.name = "Arial"
+    run_asunto_1.font.size = Pt(11)
+    run_asunto_2 = asunto.add_run(f"Disponibilidad del mes de {mes_texto} de {anio}.")
+    run_asunto_2.font.name = "Arial"
+    run_asunto_2.font.size = Pt(11)
+
+    agregar_parrafo()
+    agregar_parrafo(perfil["saludo"])
+    agregar_parrafo()
+    agregar_parrafo(perfil["introduccion"].format(mes=mes_texto))
+    agregar_parrafo()
+
+    for linea in lineas:
+        agregar_parrafo(linea)
+
+    agregar_parrafo()
+    agregar_parrafo(perfil["cierre"])
+    agregar_parrafo()
+    agregar_parrafo(perfil["despedida"])
+    agregar_parrafo()
+    agregar_parrafo()
+    agregar_parrafo()
+    agregar_parrafo()
+    for texto, bold in perfil["firma"]:
+        agregar_parrafo(texto, bold=bold)
+
+    salida = BytesIO()
+    doc.save(salida)
+    return salida.getvalue()
 
 
 def periodos_disponibles(registros: list[Registro]) -> list[str]:
