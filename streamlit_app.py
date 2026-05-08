@@ -107,10 +107,47 @@ st.set_page_config(
     layout="wide",
 )
 
-USUARIOS_APP = [USUARIO_PREDETERMINADO, "Esposa"]
+PERFILES_USUARIO = {
+    "andres_pediatra": USUARIO_PREDETERMINADO,
+    "lina_neonato": "Esposa",
+}
+USUARIOS_APP = list(PERFILES_USUARIO.keys())
 
-usuario_app = st.sidebar.selectbox("Usuario", options=USUARIOS_APP, index=0)
-os.environ["APP_USER"] = usuario_app
+st.markdown(
+    """
+    <style>
+    .usuario-box {
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 0.85rem 1rem 0.35rem 1rem;
+      margin-bottom: 0.8rem;
+      background: rgba(255,255,255,0.02);
+    }
+    .usuario-box p {
+      margin: 0;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <div class="usuario-box">
+      <p><strong>Selecciona el usuario antes de registrar turnos</strong></p>
+      <p style="opacity:.78;">Cada perfil guarda su propia información por separado.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+usuario_label = st.radio(
+    "Usuario",
+    options=USUARIOS_APP,
+    horizontal=True,
+    label_visibility="collapsed",
+)
+os.environ["APP_USER"] = PERFILES_USUARIO[usuario_label]
 
 
 def clave_foto_evidencia_actual() -> str:
@@ -466,7 +503,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.title("INGRESO HRS")
-st.caption(f"Usuario actual: {usuario_app}")
+st.caption(f"Usuario actual: {usuario_label}")
 if not usar_google_sheets():
     st.warning("Google Sheets no está conectado todavía. La app seguiría usando archivos locales temporales.")
 
