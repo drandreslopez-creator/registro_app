@@ -218,7 +218,7 @@ def estados_filtrados(estados, periodo_filtro: str):
     return [estado for estado in estados if estado.periodo == periodo_filtro]
 
 
-def csv_bytes(registros, filas_resumen=None) -> bytes:
+def csv_bytes(registros, filas_resumen=None, evidencias=None) -> bytes:
     salida = StringIO()
     writer = csv.writer(salida)
     writer.writerow(["fecha", "hora", "tipo", "detalle", "periodo", "turno", "jornada"])
@@ -234,10 +234,35 @@ def csv_bytes(registros, filas_resumen=None) -> bytes:
                 registro.jornada,
             ]
         )
+    if registros:
+        total_movimientos = len(registros)
+        total_entradas = sum(1 for registro in registros if registro.tipo == "entrada")
+        total_salidas = sum(1 for registro in registros if registro.tipo == "salida")
+        total_libres = sum(1 for registro in registros if registro.tipo == "libre")
+        total_con_evidencia = 0
+        if evidencias is not None:
+            total_con_evidencia = sum(
+                1
+                for registro in registros
+                if any(evidencia_corresponde_a_registro(evidencia, registro) for evidencia in evidencias)
+            )
+        primer_registro = min(registros, key=lambda item: item.fecha_hora)
+        ultimo_registro = max(registros, key=lambda item: item.fecha_hora)
+
+        writer.writerow([])
+        writer.writerow(["RESUMEN_MOVIMIENTOS"])
+        writer.writerow(["movimientos_registrados", total_movimientos])
+        writer.writerow(["entradas", total_entradas])
+        writer.writerow(["salidas", total_salidas])
+        writer.writerow(["dias_libres_marcados", total_libres])
+        writer.writerow(["movimientos_con_evidencia", total_con_evidencia])
+        writer.writerow(["primer_movimiento", f"{primer_registro.fecha} {formatear_hora_visible(primer_registro.hora)}"])
+        writer.writerow(["ultimo_movimiento", f"{ultimo_registro.fecha} {formatear_hora_visible(ultimo_registro.hora)}"])
+
     if filas_resumen:
         total = resumen_total_jornadas([item for item, _ in filas_resumen])
         writer.writerow([])
-        writer.writerow(["RESUMEN"])
+        writer.writerow(["RESUMEN_OPERATIVO"])
         writer.writerow(["turnos_calculados", total.turno])
         writer.writerow(["horas_programadas", horas_plan_total_texto(total.minutos_programados)])
         writer.writerow(["acumulado_trabajado", minutos_a_texto(total.minutos_dentro)])
@@ -885,7 +910,7 @@ exp_1, exp_2 = st.columns(2)
 with exp_1:
     st.download_button(
         "Descargar CSV",
-        data=csv_bytes(registros_vista, filas_resumen),
+        data=csv_bytes(registros_vista, filas_resumen, evidencias_vista),
         file_name="historial_filtrado.csv",
         mime="text/csv",
         use_container_width=True,
