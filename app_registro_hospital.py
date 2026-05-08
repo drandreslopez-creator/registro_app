@@ -471,22 +471,26 @@ def _drive_service():
 def guardar_foto_evidencia(nombre_base: str, foto_bytes: bytes) -> tuple[str, str]:
     nombre_archivo = f"{nombre_base}.jpg"
 
-    try:
-        from PIL import Image
-        from googleapiclient.http import MediaIoBaseUpload
+    from PIL import Image
 
-        imagen = Image.open(BytesIO(foto_bytes)).convert("RGB")
-        imagen.thumbnail((1280, 1280))
-        salida = BytesIO()
-        imagen.save(salida, format="JPEG", quality=82, optimize=True)
-        salida.seek(0)
+    imagen = Image.open(BytesIO(foto_bytes)).convert("RGB")
+    imagen.thumbnail((1280, 1280))
+    salida = BytesIO()
+    imagen.save(salida, format="JPEG", quality=82, optimize=True)
+    salida.seek(0)
 
-        if usar_google_sheets():
+    if usar_google_sheets():
+        carpeta_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip()
+        if not carpeta_id:
+            raise RuntimeError(
+                "Falta configurar google_drive_folder_id en Streamlit Secrets para guardar fotos en Drive."
+            )
+        try:
+            from googleapiclient.http import MediaIoBaseUpload
+
             servicio = _drive_service()
             metadata = {"name": nombre_archivo}
-            carpeta_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip()
-            if carpeta_id:
-                metadata["parents"] = [carpeta_id]
+            metadata["parents"] = [carpeta_id]
             media = MediaIoBaseUpload(salida, mimetype="image/jpeg", resumable=False)
             archivo = (
                 servicio.files()
@@ -499,16 +503,16 @@ def guardar_foto_evidencia(nombre_base: str, foto_bytes: bytes) -> tuple[str, st
             ).execute()
             foto_url = archivo.get("webViewLink") or f"https://drive.google.com/file/d/{archivo['id']}/view"
             return nombre_archivo, foto_url
+        except Exception as exc:
+            raise RuntimeError(
+                "No se pudo subir la foto a Google Drive. Revisa la carpeta compartida, "
+                "el google_drive_folder_id y los permisos de la cuenta de servicio."
+            ) from exc
 
-        EVIDENCE_DIR.mkdir(exist_ok=True)
-        destino = EVIDENCE_DIR / nombre_archivo
-        destino.write_bytes(salida.getvalue())
-        return nombre_archivo, str(destino)
-    except Exception:
-        EVIDENCE_DIR.mkdir(exist_ok=True)
-        destino = EVIDENCE_DIR / nombre_archivo
-        destino.write_bytes(foto_bytes)
-        return nombre_archivo, str(destino)
+    EVIDENCE_DIR.mkdir(exist_ok=True)
+    destino = EVIDENCE_DIR / nombre_archivo
+    destino.write_bytes(salida.getvalue())
+    return nombre_archivo, str(destino)
 
 
 def normalizar_archivo_existente():

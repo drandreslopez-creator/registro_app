@@ -393,13 +393,16 @@ with col_a:
 
         if enviar_entrada:
             registro = guardar_registro(tipo="entrada", turno=turno_rapido)
-            guardar_evidencia_registro(
-                registro,
-                ubicacion_texto=" | ".join(
-                    [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
-                ),
-                foto_bytes=obtener_foto_evidencia_bytes(),
-            )
+            try:
+                guardar_evidencia_registro(
+                    registro,
+                    ubicacion_texto=" | ".join(
+                        [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
+                    ),
+                    foto_bytes=obtener_foto_evidencia_bytes(),
+                )
+            except Exception as exc:
+                st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
             limpiar_evidencia_pendiente()
             st.success(
                 f"Entrada guardada: {formatear_fecha_visible(registro.fecha)} "
@@ -407,13 +410,16 @@ with col_a:
             )
         if enviar_salida:
             registro = guardar_registro(tipo="salida", turno=turno_rapido)
-            guardar_evidencia_registro(
-                registro,
-                ubicacion_texto=" | ".join(
-                    [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
-                ),
-                foto_bytes=obtener_foto_evidencia_bytes(),
-            )
+            try:
+                guardar_evidencia_registro(
+                    registro,
+                    ubicacion_texto=" | ".join(
+                        [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
+                    ),
+                    foto_bytes=obtener_foto_evidencia_bytes(),
+                )
+            except Exception as exc:
+                st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
             limpiar_evidencia_pendiente()
             st.success(
                 f"Salida guardada: {formatear_fecha_visible(registro.fecha)} "
@@ -481,13 +487,16 @@ with col_b:
                 turno=turno,
                 detalle=detalle,
             )
-            guardar_evidencia_registro(
-                registro,
-                ubicacion_texto=" | ".join(
-                    [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
-                ),
-                foto_bytes=obtener_foto_evidencia_bytes(),
-            )
+            try:
+                guardar_evidencia_registro(
+                    registro,
+                    ubicacion_texto=" | ".join(
+                        [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
+                    ),
+                    foto_bytes=obtener_foto_evidencia_bytes(),
+                )
+            except Exception as exc:
+                st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
             st.session_state.limpiar_hora_manual = True
             limpiar_evidencia_pendiente()
             st.session_state["mensaje_manual_ok"] = (
