@@ -405,67 +405,68 @@ col_a, col_b = st.columns([1, 1], gap="small")
 
 with col_a:
     st.subheader("Registro rápido")
-    with st.form("registro_rapido"):
-        turno_rapido = st.selectbox(
-            "Turno actual",
-            options=["12h dia", "12h noche", "5h manana"],
-            index=["12h dia", "12h noche", "5h manana"].index(turno_actual_por_hora())
-            if turno_actual_por_hora() in ["12h dia", "12h noche", "5h manana"]
-            else 0,
-        )
-        usar_evidencia_rapida = st.checkbox(
-            "Agregar evidencia",
-            key="usar_evidencia_rapida",
-        )
-        if usar_evidencia_rapida:
-            evidencia_col_1, evidencia_col_2 = st.columns([0.9, 1.1], gap="small")
-            with evidencia_col_1:
-                st.camera_input("Foto opcional", key=clave_foto_evidencia_actual())
-            with evidencia_col_2:
-                st.text_area(
-                    "Observación (opcional)",
-                    key="evidencia_observacion",
-                    placeholder="Opcional",
-                    height=90,
-                )
-        elif not usar_cloudinary() and not os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip():
-            st.caption("Si activas evidencia, primero debes configurar almacenamiento de fotos.")
-        col_1, col_2 = st.columns(2)
-        enviar_entrada = col_1.form_submit_button("Registrar entrada", use_container_width=True)
-        enviar_salida = col_2.form_submit_button("Registrar salida", use_container_width=True)
+    turno_rapido = st.selectbox(
+        "Turno actual",
+        options=["12h dia", "12h noche", "5h manana"],
+        index=["12h dia", "12h noche", "5h manana"].index(turno_actual_por_hora())
+        if turno_actual_por_hora() in ["12h dia", "12h noche", "5h manana"]
+        else 0,
+    )
+    usar_evidencia_rapida = st.checkbox(
+        "Agregar evidencia",
+        key="usar_evidencia_rapida",
+    )
+    if usar_evidencia_rapida:
+        evidencia_col_1, evidencia_col_2 = st.columns([0.9, 1.1], gap="small")
+        with evidencia_col_1:
+            st.camera_input("Foto opcional", key=clave_foto_evidencia_actual())
+        with evidencia_col_2:
+            st.text_area(
+                "Observación (opcional)",
+                key="evidencia_observacion",
+                placeholder="Opcional",
+                height=90,
+            )
+    elif not usar_cloudinary() and not os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip():
+        st.caption("Si activas evidencia, primero debes configurar almacenamiento de fotos.")
+    col_1, col_2 = st.columns(2)
+    enviar_entrada = col_1.button("Registrar entrada", use_container_width=True)
+    enviar_salida = col_2.button("Registrar salida", use_container_width=True)
 
-        if enviar_entrada:
-            registro = guardar_registro(tipo="entrada", turno=turno_rapido)
-            if st.session_state.get("usar_evidencia_rapida"):
-                try:
-                    guardar_evidencia_registro(
-                        registro,
-                        ubicacion_texto=st.session_state.get("evidencia_observacion", ""),
-                        foto_bytes=obtener_foto_evidencia_bytes(),
-                    )
-                except Exception as exc:
-                    st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
-            limpiar_evidencia_pendiente()
-            st.success(
-                f"Entrada guardada: {formatear_fecha_visible(registro.fecha)} "
-                f"{registro.hora} ({registro.turno})"
-            )
-        if enviar_salida:
-            registro = guardar_registro(tipo="salida", turno=turno_rapido)
-            if st.session_state.get("usar_evidencia_rapida"):
-                try:
-                    guardar_evidencia_registro(
-                        registro,
-                        ubicacion_texto=st.session_state.get("evidencia_observacion", ""),
-                        foto_bytes=obtener_foto_evidencia_bytes(),
-                    )
-                except Exception as exc:
-                    st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
-            limpiar_evidencia_pendiente()
-            st.success(
-                f"Salida guardada: {formatear_fecha_visible(registro.fecha)} "
-                f"{registro.hora} ({registro.turno})"
-            )
+    if enviar_entrada:
+        registro = guardar_registro(tipo="entrada", turno=turno_rapido)
+        if st.session_state.get("usar_evidencia_rapida"):
+            try:
+                guardar_evidencia_registro(
+                    registro,
+                    ubicacion_texto=st.session_state.get("evidencia_observacion", ""),
+                    foto_bytes=obtener_foto_evidencia_bytes(),
+                )
+            except Exception as exc:
+                st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
+        limpiar_evidencia_pendiente()
+        st.success(
+            f"Entrada guardada: {formatear_fecha_visible(registro.fecha)} "
+            f"{registro.hora} ({registro.turno})"
+        )
+        st.rerun()
+    if enviar_salida:
+        registro = guardar_registro(tipo="salida", turno=turno_rapido)
+        if st.session_state.get("usar_evidencia_rapida"):
+            try:
+                guardar_evidencia_registro(
+                    registro,
+                    ubicacion_texto=st.session_state.get("evidencia_observacion", ""),
+                    foto_bytes=obtener_foto_evidencia_bytes(),
+                )
+            except Exception as exc:
+                st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
+        limpiar_evidencia_pendiente()
+        st.success(
+            f"Salida guardada: {formatear_fecha_visible(registro.fecha)} "
+            f"{registro.hora} ({registro.turno})"
+        )
+        st.rerun()
 
     st.subheader("Estado del día")
     with st.form("estado_dia"):
