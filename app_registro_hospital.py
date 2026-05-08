@@ -620,6 +620,18 @@ def borrar_archivo_evidencia(evidencia: EvidenciaRegistro) -> None:
             ruta.unlink()
 
 
+def evidencia_corresponde_a_registro(evidencia: EvidenciaRegistro, registro: Registro) -> bool:
+    if evidencia.registro_clave == clave_registro(registro):
+        return True
+    return (
+        evidencia.fecha == registro.fecha
+        and evidencia.hora == registro.hora
+        and evidencia.tipo == registro.tipo
+        and evidencia.turno == registro.turno
+        and evidencia.jornada == registro.jornada
+    )
+
+
 def normalizar_archivo_existente():
     with DATA_FILE.open("r", newline="", encoding="utf-8") as file:
         filas = list(csv.reader(file))
@@ -750,8 +762,6 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
     if not eliminado:
         return False
 
-    clave_objetivo = clave_registro(registro_objetivo)
-
     if usar_google_sheets():
         hoja = _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
         _reescribir_worksheet(
@@ -770,7 +780,7 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
                 for registro in restantes
             ],
         )
-        eliminar_evidencias_por_registro_clave(clave_objetivo)
+        eliminar_evidencias_por_registro(registro_objetivo)
         return True
 
     with DATA_FILE.open("w", newline="", encoding="utf-8") as file:
@@ -789,7 +799,7 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
                 ]
             )
 
-    eliminar_evidencias_por_registro_clave(clave_objetivo)
+    eliminar_evidencias_por_registro(registro_objetivo)
     crear_copia_seguridad()
     return True
 
@@ -975,13 +985,13 @@ def leer_evidencias() -> list[EvidenciaRegistro]:
     return evidencias
 
 
-def eliminar_evidencias_por_registro_clave(registro_clave: str) -> int:
-    if not registro_clave:
+def eliminar_evidencias_por_registro(registro: Registro) -> int:
+    if not registro:
         return 0
 
     evidencias = leer_evidencias()
-    a_eliminar = [evidencia for evidencia in evidencias if evidencia.registro_clave == registro_clave]
-    restantes = [evidencia for evidencia in evidencias if evidencia.registro_clave != registro_clave]
+    a_eliminar = [evidencia for evidencia in evidencias if evidencia_corresponde_a_registro(evidencia, registro)]
+    restantes = [evidencia for evidencia in evidencias if not evidencia_corresponde_a_registro(evidencia, registro)]
     eliminadas = len(evidencias) - len(restantes)
 
     if eliminadas == 0:
