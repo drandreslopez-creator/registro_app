@@ -437,6 +437,11 @@ with col_a:
                 key=clave_foto_evidencia_actual(),
                 on_change=sincronizar_foto_rapida,
             )
+            if foto_rapida_widget is not None:
+                try:
+                    st.session_state["evidencia_foto_bytes"] = foto_rapida_widget.getvalue()
+                except Exception:
+                    st.session_state["evidencia_foto_bytes"] = None
         with evidencia_col_2:
             st.text_area(
                 "Observación (opcional)",
@@ -444,6 +449,8 @@ with col_a:
                 placeholder="Opcional",
                 height=90,
             )
+            if st.session_state.get("evidencia_foto_bytes"):
+                st.caption("Foto lista para guardar.")
     elif not usar_cloudinary() and not os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip():
         st.caption("Si activas evidencia, primero debes configurar almacenamiento de fotos.")
     col_1, col_2 = st.columns(2)
@@ -454,11 +461,15 @@ with col_a:
         registro = guardar_registro(tipo="entrada", turno=turno_rapido)
         if st.session_state.get("usar_evidencia_rapida"):
             try:
-                guardar_evidencia_registro(
+                evidencia_guardada = guardar_evidencia_registro(
                     registro,
                     ubicacion_texto=st.session_state.get("evidencia_observacion", ""),
                     foto_bytes=st.session_state.get("evidencia_foto_bytes") or obtener_foto_evidencia_bytes(foto_rapida_widget),
                 )
+                if evidencia_guardada is None:
+                    st.info("No se detectó foto ni observación, así que no se creó evidencia.")
+                else:
+                    st.success("Evidencia guardada con este registro.")
             except Exception as exc:
                 st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
         limpiar_evidencia_pendiente()
@@ -471,11 +482,15 @@ with col_a:
         registro = guardar_registro(tipo="salida", turno=turno_rapido)
         if st.session_state.get("usar_evidencia_rapida"):
             try:
-                guardar_evidencia_registro(
+                evidencia_guardada = guardar_evidencia_registro(
                     registro,
                     ubicacion_texto=st.session_state.get("evidencia_observacion", ""),
                     foto_bytes=st.session_state.get("evidencia_foto_bytes") or obtener_foto_evidencia_bytes(foto_rapida_widget),
                 )
+                if evidencia_guardada is None:
+                    st.info("No se detectó foto ni observación, así que no se creó evidencia.")
+                else:
+                    st.success("Evidencia guardada con este registro.")
             except Exception as exc:
                 st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
         limpiar_evidencia_pendiente()
