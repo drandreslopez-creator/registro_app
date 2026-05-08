@@ -391,6 +391,78 @@ def etiqueta_estado(estado):
     return f"{formatear_fecha_visible(estado.fecha)} | {estado.estado} | {estado.detalle or 'sin detalle'}"
 
 
+def render_borrado_estados(estados):
+    if "pendiente_borrar_estado" not in st.session_state:
+        st.session_state["pendiente_borrar_estado"] = None
+
+    pendiente = st.session_state.get("pendiente_borrar_estado")
+    if pendiente is not None and (pendiente < 0 or pendiente >= len(estados)):
+        st.session_state["pendiente_borrar_estado"] = None
+        pendiente = None
+
+    with st.expander("Eliminar estado programado"):
+        for indice, estado in enumerate(estados):
+            col_texto, col_boton = st.columns([0.9, 0.1], gap="small")
+            with col_texto:
+                st.caption(etiqueta_estado(estado))
+            with col_boton:
+                if st.button("✕", key=f"borrar_estado_{indice}", use_container_width=True):
+                    st.session_state["pendiente_borrar_estado"] = indice
+                    st.rerun()
+
+        pendiente = st.session_state.get("pendiente_borrar_estado")
+        if pendiente is not None and 0 <= pendiente < len(estados):
+            st.warning(f"¿Seguro que quieres eliminar este estado?\n\n{etiqueta_estado(estados[pendiente])}")
+            col_ok, col_cancelar = st.columns(2, gap="small")
+            with col_ok:
+                if st.button("Sí, eliminar", key="confirmar_borrar_estado", use_container_width=True):
+                    if eliminar_estado_dia(estados[pendiente]):
+                        st.session_state["pendiente_borrar_estado"] = None
+                        st.success("Estado programado eliminado.")
+                        st.rerun()
+                    st.error("No se pudo eliminar el estado programado.")
+            with col_cancelar:
+                if st.button("Cancelar", key="cancelar_borrar_estado", use_container_width=True):
+                    st.session_state["pendiente_borrar_estado"] = None
+                    st.rerun()
+
+
+def render_borrado_movimientos(registros):
+    if "pendiente_borrar_movimiento" not in st.session_state:
+        st.session_state["pendiente_borrar_movimiento"] = None
+
+    pendiente = st.session_state.get("pendiente_borrar_movimiento")
+    if pendiente is not None and (pendiente < 0 or pendiente >= len(registros)):
+        st.session_state["pendiente_borrar_movimiento"] = None
+        pendiente = None
+
+    with st.expander("Eliminar movimiento registrado"):
+        for indice, registro in enumerate(registros):
+            col_texto, col_boton = st.columns([0.9, 0.1], gap="small")
+            with col_texto:
+                st.caption(etiqueta_registro(registro))
+            with col_boton:
+                if st.button("✕", key=f"borrar_movimiento_{indice}", use_container_width=True):
+                    st.session_state["pendiente_borrar_movimiento"] = indice
+                    st.rerun()
+
+        pendiente = st.session_state.get("pendiente_borrar_movimiento")
+        if pendiente is not None and 0 <= pendiente < len(registros):
+            st.warning(f"¿Seguro que quieres eliminar este movimiento?\n\n{etiqueta_registro(registros[pendiente])}")
+            col_ok, col_cancelar = st.columns(2, gap="small")
+            with col_ok:
+                if st.button("Sí, eliminar", key="confirmar_borrar_movimiento", use_container_width=True):
+                    if eliminar_registro(registros[pendiente]):
+                        st.session_state["pendiente_borrar_movimiento"] = None
+                        st.success("Movimiento eliminado.")
+                        st.rerun()
+                    st.error("No se pudo eliminar el movimiento.")
+            with col_cancelar:
+                if st.button("Cancelar", key="cancelar_borrar_movimiento", use_container_width=True):
+                    st.session_state["pendiente_borrar_movimiento"] = None
+                    st.rerun()
+
+
 st.markdown(
     """
     <style>
@@ -678,39 +750,14 @@ if estados_vista:
         st.caption("Organizado por servicio / detalle")
         st.dataframe(filas_servicio, use_container_width=True, hide_index=True)
     st.metric(etiqueta_horas_programadas, horas_plan_total_texto(total_minutos_programados))
-    with st.form("eliminar_estado"):
-        estado_seleccionado = st.selectbox(
-            "Eliminar estado programado",
-            options=range(len(estados_vista)),
-            format_func=lambda i: etiqueta_estado(estados_vista[i]),
-        )
-        confirmar_eliminar_estado = st.form_submit_button("Eliminar estado seleccionado", use_container_width=True)
-        if confirmar_eliminar_estado:
-            if eliminar_estado_dia(estados_vista[estado_seleccionado]):
-                st.success("Estado programado eliminado.")
-                st.rerun()
-            st.error("No se pudo eliminar el estado programado.")
+    render_borrado_estados(estados_vista)
 else:
     st.info("No hay estados programados en este periodo.")
 
 st.subheader("Movimientos registrados")
 st.dataframe(tabla_movimientos(registros_vista, evidencias_vista), use_container_width=True, hide_index=True)
 if registros_vista:
-    with st.form("eliminar_movimiento"):
-        registro_seleccionado = st.selectbox(
-            "Eliminar movimiento registrado",
-            options=range(len(registros_vista)),
-            format_func=lambda i: etiqueta_registro(registros_vista[i]),
-        )
-        confirmar_eliminar_movimiento = st.form_submit_button(
-            "Eliminar movimiento seleccionado",
-            use_container_width=True,
-        )
-        if confirmar_eliminar_movimiento:
-            if eliminar_registro(registros_vista[registro_seleccionado]):
-                st.success("Movimiento eliminado.")
-                st.rerun()
-            st.error("No se pudo eliminar el movimiento.")
+    render_borrado_movimientos(registros_vista)
 
 st.subheader("Evidencias registradas")
 if evidencias_vista:
