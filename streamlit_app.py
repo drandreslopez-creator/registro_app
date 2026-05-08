@@ -99,8 +99,13 @@ if not verificar_acceso():
     st.stop()
 
 
+def clave_foto_evidencia_actual() -> str:
+    version = st.session_state.get("evidencia_foto_version", 0)
+    return f"evidencia_foto_{version}"
+
+
 def obtener_foto_evidencia_bytes():
-    foto = st.session_state.get("evidencia_foto")
+    foto = st.session_state.get(clave_foto_evidencia_actual())
     if foto is None:
         return None
     try:
@@ -338,10 +343,13 @@ st.title("INGRESO HRS")
 if not usar_google_sheets():
     st.warning("Google Sheets no está conectado todavía. La app seguiría usando archivos locales temporales.")
 
+if "evidencia_foto_version" not in st.session_state:
+    st.session_state["evidencia_foto_version"] = 0
+
 if st.session_state.get("limpiar_evidencia_pendiente"):
     st.session_state["evidencia_ubicacion"] = ""
     st.session_state["evidencia_nota"] = ""
-    st.session_state["evidencia_foto"] = None
+    st.session_state["evidencia_foto_version"] += 1
     st.session_state["limpiar_evidencia_pendiente"] = False
 
 with st.expander("Evidencia opcional para el proximo registro"):
@@ -356,7 +364,7 @@ with st.expander("Evidencia opcional para el proximo registro"):
         key="evidencia_nota",
         placeholder="Opcional",
     )
-    st.camera_input("Tomar foto", key="evidencia_foto")
+    st.camera_input("Tomar foto", key=clave_foto_evidencia_actual())
 
 ahora = datetime.now()
 
