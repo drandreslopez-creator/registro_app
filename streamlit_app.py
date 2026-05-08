@@ -73,6 +73,7 @@ from app_registro_hospital import (
     ESTADOS_DIA,
     TODOS_LOS_PERIODOS,
     TURNOS,
+    USUARIO_PREDETERMINADO,
     agrupar_resumenes_jornada,
     ahora_colombia,
     calcular_periodo,
@@ -106,28 +107,10 @@ st.set_page_config(
     layout="wide",
 )
 
-CLAVE_ACCESO_APP = "8041003"
+USUARIOS_APP = [USUARIO_PREDETERMINADO, "Esposa"]
 
-
-def verificar_acceso() -> bool:
-    if st.session_state.get("acceso_autorizado"):
-        return True
-
-    st.title("Acceso")
-    st.caption("Ingresa la clave para abrir la aplicación.")
-    with st.form("acceso_app"):
-        clave = st.text_input("Clave", type="password")
-        entrar = st.form_submit_button("Entrar", use_container_width=True)
-        if entrar:
-            if clave == CLAVE_ACCESO_APP:
-                st.session_state["acceso_autorizado"] = True
-                st.rerun()
-            st.error("Clave incorrecta.")
-    return False
-
-
-if not verificar_acceso():
-    st.stop()
+usuario_app = st.sidebar.selectbox("Usuario", options=USUARIOS_APP, index=0)
+os.environ["APP_USER"] = usuario_app
 
 
 def clave_foto_evidencia_actual() -> str:
@@ -483,6 +466,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.title("INGRESO HRS")
+st.caption(f"Usuario actual: {usuario_app}")
 if not usar_google_sheets():
     st.warning("Google Sheets no está conectado todavía. La app seguiría usando archivos locales temporales.")
 

@@ -27,6 +27,7 @@ EVIDENCE_DIR = BASE_DIR / "evidencias"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 COLOMBIA_TZ = ZoneInfo("America/Bogota")
 TODOS_LOS_PERIODOS = "Todos los periodos"
+USUARIO_PREDETERMINADO = "Andres"
 COLUMNAS_ARCHIVO = ["fecha", "hora", "tipo", "detalle", "periodo", "turno", "jornada"]
 COLUMNAS_ESTADOS = ["fecha", "estado", "detalle", "periodo"]
 COLUMNAS_EVIDENCIAS = [
@@ -90,6 +91,38 @@ messagebox = None
 ttk = None
 GOOGLE_WORKSHEETS_INICIALIZADAS: set[tuple[str, str]] = set()
 GOOGLE_WORKSHEET_CACHE: dict[tuple[str, str], object] = {}
+
+
+def usuario_actual() -> str:
+    return (os.environ.get("APP_USER", USUARIO_PREDETERMINADO) or USUARIO_PREDETERMINADO).strip()
+
+
+def _slug_usuario(usuario: str | None = None) -> str:
+    texto = (usuario or usuario_actual()).strip().lower()
+    texto = re.sub(r"[^a-z0-9]+", "_", texto)
+    return texto.strip("_") or "usuario"
+
+
+def _es_usuario_predeterminado(usuario: str | None = None) -> bool:
+    return (usuario or usuario_actual()).strip() == USUARIO_PREDETERMINADO
+
+
+def ruta_archivo_usuario(base: Path, usuario: str | None = None) -> Path:
+    if _es_usuario_predeterminado(usuario):
+        return base
+    return base.with_name(f"{base.stem}__{_slug_usuario(usuario)}{base.suffix}")
+
+
+def carpeta_evidencias_usuario(usuario: str | None = None) -> Path:
+    if _es_usuario_predeterminado(usuario):
+        return EVIDENCE_DIR
+    return EVIDENCE_DIR / _slug_usuario(usuario)
+
+
+def nombre_worksheet_usuario(base: str, usuario: str | None = None) -> str:
+    if _es_usuario_predeterminado(usuario):
+        return base
+    return f"{base}__{_slug_usuario(usuario)}"
 
 
 def cargar_ui_escritorio():
@@ -301,13 +334,14 @@ def construir_fecha_hora_manual(fecha: date | datetime | str, hora: time | str) 
 
 def asegurar_archivo():
     BACKUP_DIR.mkdir(exist_ok=True)
-    EVIDENCE_DIR.mkdir(exist_ok=True)
+    carpeta_evidencias_usuario().mkdir(exist_ok=True, parents=True)
     if usar_google_sheets():
         if not _hojas_google_listas():
             asegurar_hojas_google()
         return
-    if not DATA_FILE.exists():
-        with DATA_FILE.open("w", newline="", encoding="utf-8") as file:
+    archivo_datos = ruta_archivo_usuario(DATA_FILE)
+    if not archivo_datos.exists():
+        with archivo_datos.open("w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(COLUMNAS_ARCHIVO)
     asegurar_archivo_estados()
@@ -319,8 +353,9 @@ def asegurar_archivo_estados():
         if not _hojas_google_listas():
             asegurar_hojas_google()
         return
-    if not STATE_FILE.exists():
-        with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
+    archivo_estados = ruta_archivo_usuario(STATE_FILE)
+    if not archivo_estados.exists():
+        with archivo_estados.open("w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(COLUMNAS_ESTADOS)
 
@@ -330,8 +365,9 @@ def asegurar_archivo_evidencias():
         if not _hojas_google_listas():
             asegurar_hojas_google()
         return
-    if not EVIDENCE_FILE.exists():
-        with EVIDENCE_FILE.open("w", newline="", encoding="utf-8") as file:
+    archivo_evidencias = ruta_archivo_usuario(EVIDENCE_FILE)
+    if not archivo_evidencias.exists():
+        with archivo_evidencias.open("w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(COLUMNAS_EVIDENCIAS)
 
@@ -415,9 +451,9 @@ def _obtener_worksheet(nombre: str, headers: list[str]):
 
 
 def asegurar_hojas_google():
-    _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
-    _obtener_worksheet("estados", COLUMNAS_ESTADOS)
-    _obtener_worksheet("evidencias", COLUMNAS_EVIDENCIAS)
+    _obtener_worksheet(nombre_worksheet_usuario("movimientos"), COLUMNAS_ARCHIVO)
+    _obtener_worksheet(nombre_worksheet_usuario("estados"), COLUMNAS_ESTADOS)
+    _obtener_worksheet(nombre_worksheet_usuario("evidencias"), COLUMNAS_EVIDENCIAS)
 
 
 def _hojas_google_listas() -> bool:
@@ -565,8 +601,9 @@ def guardar_foto_evidencia(nombre_base: str, foto_bytes: bytes) -> tuple[str, st
                 f"Detalle: {exc}"
             ) from exc
 
-    EVIDENCE_DIR.mkdir(exist_ok=True)
-    destino = EVIDENCE_DIR / nombre_archivo
+    carpeta_destino = carpeta_evidencias_usuario()
+    carpeta_destino.mkdir(exist_ok=True, parents=True)
+    destino = carpeta_destino / nombre_archivo
     destino.write_bytes(salida.getvalue())
     return nombre_archivo, str(destino)
 
@@ -633,11 +670,12 @@ def evidencia_corresponde_a_registro(evidencia: EvidenciaRegistro, registro: Reg
 
 
 def normalizar_archivo_existente():
-    with DATA_FILE.open("r", newline="", encoding="utf-8") as file:
+    archivo_datos = ruta_archivo_usuario(DATA_FILE)
+    with archivo_datos.open("r", newline="", encoding="utf-8") as file:
         filas = list(csv.reader(file))
 
     if not filas:
-        with DATA_FILE.open("w", newline="", encoding="utf-8") as file:
+        with archivo_datos.open("w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(COLUMNAS_ARCHIVO)
         return
@@ -647,7 +685,7 @@ def normalizar_archivo_existente():
         return
 
     respaldo = BACKUP_DIR / f"historial_registros_migracion_{ahora_colombia().strftime('%Y%m%d_%H%M%S')}.csv"
-    shutil.copy2(DATA_FILE, respaldo)
+    shutil.copy2(archivo_datos, respaldo)
 
     registros_convertidos: list[Registro] = []
     for fila in filas[1:]:
@@ -678,7 +716,7 @@ def normalizar_archivo_existente():
             )
         )
 
-    with DATA_FILE.open("w", newline="", encoding="utf-8") as file:
+    with archivo_datos.open("w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(COLUMNAS_ARCHIVO)
         for registro in registros_convertidos:
@@ -715,7 +753,7 @@ def guardar_registro_en_fecha(tipo: str, fecha_hora: datetime, turno: str, detal
     )
 
     if usar_google_sheets():
-        hoja = _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("movimientos"), COLUMNAS_ARCHIVO)
         _google_con_reintento(
             hoja.append_row,
             [
@@ -730,7 +768,7 @@ def guardar_registro_en_fecha(tipo: str, fecha_hora: datetime, turno: str, detal
         )
         return registro
 
-    with DATA_FILE.open("a", newline="", encoding="utf-8") as file:
+    with ruta_archivo_usuario(DATA_FILE).open("a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(
             [
@@ -763,7 +801,7 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
         return False
 
     if usar_google_sheets():
-        hoja = _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("movimientos"), COLUMNAS_ARCHIVO)
         _reescribir_worksheet(
             hoja,
             COLUMNAS_ARCHIVO,
@@ -783,7 +821,7 @@ def eliminar_registro(registro_objetivo: Registro) -> bool:
         eliminar_evidencias_por_registro(registro_objetivo)
         return True
 
-    with DATA_FILE.open("w", newline="", encoding="utf-8") as file:
+    with ruta_archivo_usuario(DATA_FILE).open("w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(COLUMNAS_ARCHIVO)
         for registro in restantes:
@@ -809,7 +847,7 @@ def leer_registros() -> list[Registro]:
     registros: list[Registro] = []
 
     if usar_google_sheets():
-        hoja = _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("movimientos"), COLUMNAS_ARCHIVO)
         filas = _google_con_reintento(hoja.get_all_records)
         for row in filas:
             fecha = str(row.get("fecha", "")).strip()
@@ -833,7 +871,7 @@ def leer_registros() -> list[Registro]:
         registros.sort(key=lambda item: item.fecha_hora)
         return registros
 
-    with DATA_FILE.open("r", newline="", encoding="utf-8") as file:
+    with ruta_archivo_usuario(DATA_FILE).open("r", newline="", encoding="utf-8") as file:
         reader = csv.DictReader(file)
         for row in reader:
             fecha = row.get("fecha", "")
@@ -894,7 +932,7 @@ def guardar_evidencia_registro(
 
     asegurar_archivo_evidencias()
     if usar_google_sheets():
-        hoja = _obtener_worksheet("evidencias", COLUMNAS_EVIDENCIAS)
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("evidencias"), COLUMNAS_EVIDENCIAS)
         _google_con_reintento(
             hoja.append_row,
             [
@@ -913,7 +951,7 @@ def guardar_evidencia_registro(
         )
         return evidencia
 
-    with EVIDENCE_FILE.open("a", newline="", encoding="utf-8") as file:
+    with ruta_archivo_usuario(EVIDENCE_FILE).open("a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(
             [
@@ -938,7 +976,7 @@ def leer_evidencias() -> list[EvidenciaRegistro]:
     evidencias: list[EvidenciaRegistro] = []
 
     if usar_google_sheets():
-        hoja = _obtener_worksheet("evidencias", COLUMNAS_EVIDENCIAS)
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("evidencias"), COLUMNAS_EVIDENCIAS)
         filas = _google_con_reintento(hoja.get_all_records)
         for row in filas:
             clave = str(row.get("registro_clave", "")).strip()
@@ -961,7 +999,7 @@ def leer_evidencias() -> list[EvidenciaRegistro]:
             )
         return evidencias
 
-    with EVIDENCE_FILE.open("r", newline="", encoding="utf-8") as file:
+    with ruta_archivo_usuario(EVIDENCE_FILE).open("r", newline="", encoding="utf-8") as file:
         reader = csv.DictReader(file)
         for row in reader:
             clave = row.get("registro_clave", "").strip()
@@ -1005,7 +1043,7 @@ def eliminar_evidencias_por_registro(registro: Registro) -> int:
             pass
 
     if usar_google_sheets():
-        hoja = _obtener_worksheet("evidencias", COLUMNAS_EVIDENCIAS)
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("evidencias"), COLUMNAS_EVIDENCIAS)
         _reescribir_worksheet(
             hoja,
             COLUMNAS_EVIDENCIAS,
@@ -1028,7 +1066,7 @@ def eliminar_evidencias_por_registro(registro: Registro) -> int:
         )
         return eliminadas
 
-    with EVIDENCE_FILE.open("w", newline="", encoding="utf-8") as file:
+    with ruta_archivo_usuario(EVIDENCE_FILE).open("w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(COLUMNAS_EVIDENCIAS)
         for evidencia in restantes:
@@ -1056,7 +1094,7 @@ def crear_copia_seguridad():
         return
     fecha_respaldo = ahora_colombia().strftime("%Y%m%d")
     destino = BACKUP_DIR / f"historial_registros_{fecha_respaldo}.csv"
-    shutil.copy2(DATA_FILE, destino)
+    shutil.copy2(ruta_archivo_usuario(DATA_FILE), destino)
 
 
 def guardar_estado_dia(fecha: date | str, estado: str, detalle: str = "") -> EstadoDia:
@@ -1091,7 +1129,7 @@ def guardar_estado_dia(fecha: date | str, estado: str, detalle: str = "") -> Est
     actualizados.sort(key=lambda item: item.fecha)
 
     if usar_google_sheets():
-        hoja = _obtener_worksheet("estados", COLUMNAS_ESTADOS)
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("estados"), COLUMNAS_ESTADOS)
         _reescribir_worksheet(
             hoja,
             COLUMNAS_ESTADOS,
@@ -1099,7 +1137,7 @@ def guardar_estado_dia(fecha: date | str, estado: str, detalle: str = "") -> Est
         )
         return estado_dia
 
-    with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
+    with ruta_archivo_usuario(STATE_FILE).open("w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(COLUMNAS_ESTADOS)
         for item in actualizados:
@@ -1135,7 +1173,7 @@ def eliminar_estado_dia(estado_objetivo: EstadoDia | date | str) -> bool:
         return False
 
     if usar_google_sheets():
-        hoja = _obtener_worksheet("estados", COLUMNAS_ESTADOS)
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("estados"), COLUMNAS_ESTADOS)
         _reescribir_worksheet(
             hoja,
             COLUMNAS_ESTADOS,
@@ -1143,7 +1181,7 @@ def eliminar_estado_dia(estado_objetivo: EstadoDia | date | str) -> bool:
         )
         return True
 
-    with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
+    with ruta_archivo_usuario(STATE_FILE).open("w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(COLUMNAS_ESTADOS)
         for item in restantes:
@@ -1157,7 +1195,7 @@ def leer_estados_dia() -> list[EstadoDia]:
     estados: list[EstadoDia] = []
 
     if usar_google_sheets():
-        hoja = _obtener_worksheet("estados", COLUMNAS_ESTADOS)
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("estados"), COLUMNAS_ESTADOS)
         for row in _google_con_reintento(hoja.get_all_records):
             fecha = str(row.get("fecha", "")).strip()
             if not fecha:
@@ -1172,7 +1210,7 @@ def leer_estados_dia() -> list[EstadoDia]:
         estados.sort(key=lambda item: item.fecha)
         return estados
 
-    with STATE_FILE.open("r", newline="", encoding="utf-8") as file:
+    with ruta_archivo_usuario(STATE_FILE).open("r", newline="", encoding="utf-8") as file:
         reader = csv.DictReader(file)
         for row in reader:
             fecha = row.get("fecha", "").strip()
