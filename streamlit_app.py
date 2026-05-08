@@ -358,13 +358,16 @@ def render_galeria_evidencias(evidencias):
             f"{evidencia.tipo.capitalize()} | {evidencia.turno}"
         )
         with st.expander(titulo):
-            if evidencia.ubicacion_texto:
-                st.write(f"Observación: {evidencia.ubicacion_texto}")
-            if evidencia.foto_url:
-                st.image(evidencia.foto_url, use_container_width=True)
-                st.link_button("Abrir foto", evidencia.foto_url, use_container_width=True)
-            else:
-                st.caption(evidencia.foto_nombre)
+            galeria_col_1, galeria_col_2 = st.columns([0.9, 1.1], gap="small")
+            with galeria_col_1:
+                if evidencia.foto_url:
+                    st.image(evidencia.foto_url, width=220)
+                    st.link_button("Abrir foto", evidencia.foto_url, use_container_width=True)
+                else:
+                    st.caption(evidencia.foto_nombre)
+            with galeria_col_2:
+                if evidencia.ubicacion_texto:
+                    st.write(f"Observación: {evidencia.ubicacion_texto}")
 
 
 def etiqueta_registro(registro):
