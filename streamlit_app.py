@@ -46,15 +46,18 @@ from app_registro_hospital import (
     agrupar_resumenes_jornada,
     ahora_colombia,
     calcular_periodo,
+    clave_registro,
     construir_fecha_hora_manual,
     eliminar_estado_dia,
     eliminar_registro,
     exportar_html,
     formatear_hora_visible,
+    guardar_evidencia_registro,
     guardar_registro,
     guardar_registro_en_fecha,
     guardar_estado_dia,
     leer_estados_dia,
+    leer_evidencias,
     leer_registros,
     minutos_a_texto,
     periodos_combinados,
@@ -94,6 +97,20 @@ def verificar_acceso() -> bool:
 
 if not verificar_acceso():
     st.stop()
+
+
+def obtener_foto_evidencia_bytes():
+    foto = st.session_state.get("evidencia_foto")
+    if foto is None:
+        return None
+    try:
+        return foto.getvalue()
+    except Exception:
+        return None
+
+
+def limpiar_evidencia_pendiente():
+    st.session_state["limpiar_evidencia_pendiente"] = True
 
 
 def registros_filtrados(registros, periodo_filtro: str):
@@ -216,7 +233,8 @@ def tabla_resumen(filas_resumen):
     return filas
 
 
-def tabla_movimientos(registros):
+def tabla_movimientos(registros, evidencias):
+    evidencias_por_clave = {evidencia.registro_clave: evidencia for evidencia in evidencias}
     return [
         {
             "Fecha": formatear_fecha_visible(registro.fecha),
@@ -225,6 +243,7 @@ def tabla_movimientos(registros):
             "Turno": registro.turno,
             "Jornada": formatear_fecha_visible(registro.jornada),
             "Detalle": registro.detalle,
+            "Evidencia": "Si" if clave_registro(registro) in evidencias_por_clave else "No",
             "Periodo": formatear_periodo_visible(registro.periodo),
         }
         for registro in registros
@@ -271,6 +290,20 @@ def resumen_estados_programados(estados):
     return total_minutos, filas_servicio
 
 
+def tabla_evidencias(evidencias):
+    return [
+        {
+            "Fecha": formatear_fecha_visible(evidencia.fecha),
+            "Hora": formatear_hora_visible(evidencia.hora),
+            "Tipo": evidencia.tipo.capitalize(),
+            "Turno": evidencia.turno,
+            "Ubicacion / referencia": evidencia.ubicacion_texto or "-",
+            "Foto / enlace": evidencia.foto_url or evidencia.foto_nombre or "Sin foto",
+        }
+        for evidencia in evidencias
+    ]
+
+
 def etiqueta_registro(registro):
     return (
         f"{formatear_fecha_visible(registro.fecha)} | {formatear_hora_visible(registro.hora)} | "
@@ -305,6 +338,26 @@ st.title("INGRESO HRS")
 if not usar_google_sheets():
     st.warning("Google Sheets no está conectado todavía. La app seguiría usando archivos locales temporales.")
 
+if st.session_state.get("limpiar_evidencia_pendiente"):
+    st.session_state["evidencia_ubicacion"] = ""
+    st.session_state["evidencia_nota"] = ""
+    st.session_state["evidencia_foto"] = None
+    st.session_state["limpiar_evidencia_pendiente"] = False
+
+with st.expander("Evidencia opcional para el proximo registro"):
+    st.caption("Puedes adjuntar una foto y una referencia de ubicacion para dejar soporte adicional.")
+    st.text_input(
+        "Ubicacion / referencia",
+        key="evidencia_ubicacion",
+        placeholder="Ejemplo: entrada principal, porteria, HX, urgencias",
+    )
+    st.text_area(
+        "Nota de evidencia",
+        key="evidencia_nota",
+        placeholder="Opcional",
+    )
+    st.camera_input("Tomar foto", key="evidencia_foto")
+
 ahora = datetime.now()
 
 col_a, col_b = st.columns([1, 1], gap="small")
@@ -325,12 +378,28 @@ with col_a:
 
         if enviar_entrada:
             registro = guardar_registro(tipo="entrada", turno=turno_rapido)
+            guardar_evidencia_registro(
+                registro,
+                ubicacion_texto=" | ".join(
+                    [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
+                ),
+                foto_bytes=obtener_foto_evidencia_bytes(),
+            )
+            limpiar_evidencia_pendiente()
             st.success(
                 f"Entrada guardada: {formatear_fecha_visible(registro.fecha)} "
                 f"{registro.hora} ({registro.turno})"
             )
         if enviar_salida:
             registro = guardar_registro(tipo="salida", turno=turno_rapido)
+            guardar_evidencia_registro(
+                registro,
+                ubicacion_texto=" | ".join(
+                    [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
+                ),
+                foto_bytes=obtener_foto_evidencia_bytes(),
+            )
+            limpiar_evidencia_pendiente()
             st.success(
                 f"Salida guardada: {formatear_fecha_visible(registro.fecha)} "
                 f"{registro.hora} ({registro.turno})"
@@ -397,7 +466,15 @@ with col_b:
                 turno=turno,
                 detalle=detalle,
             )
+            guardar_evidencia_registro(
+                registro,
+                ubicacion_texto=" | ".join(
+                    [item for item in [st.session_state.get("evidencia_ubicacion", ""), st.session_state.get("evidencia_nota", "")] if item]
+                ),
+                foto_bytes=obtener_foto_evidencia_bytes(),
+            )
             st.session_state.limpiar_hora_manual = True
+            limpiar_evidencia_pendiente()
             st.session_state["mensaje_manual_ok"] = (
                 f"Registro manual guardado: {registro.tipo.capitalize()} "
                 f"{formatear_fecha_visible(registro.fecha)} "
@@ -410,6 +487,7 @@ with col_b:
 try:
     registros = leer_registros()
     estados = leer_estados_dia()
+    evidencias = leer_evidencias()
 except Exception as exc:
     st.error(
         "No se pudo abrir la base de datos de Google Sheets. "
@@ -450,6 +528,11 @@ with col_periodo_3:
 
 registros_vista = registros_filtrados(registros, periodo_filtro)
 estados_vista = estados_filtrados(estados, periodo_filtro)
+evidencias_vista = [
+    evidencia
+    for evidencia in evidencias
+    if periodo_filtro == TODOS_LOS_PERIODOS or evidencia.periodo == periodo_filtro
+]
 resumen_total = resumir_periodo(registros_vista)
 filas_resumen = resumenes_programado_vs_real(registros_vista, estados_vista)
 
@@ -511,7 +594,7 @@ else:
     st.info("No hay estados programados en este periodo.")
 
 st.subheader("Movimientos registrados")
-st.dataframe(tabla_movimientos(registros_vista), use_container_width=True, hide_index=True)
+st.dataframe(tabla_movimientos(registros_vista, evidencias_vista), use_container_width=True, hide_index=True)
 if registros_vista:
     with st.form("eliminar_movimiento"):
         registro_seleccionado = st.selectbox(
@@ -528,3 +611,9 @@ if registros_vista:
                 st.success("Movimiento eliminado.")
                 st.rerun()
             st.error("No se pudo eliminar el movimiento.")
+
+st.subheader("Evidencias registradas")
+if evidencias_vista:
+    st.dataframe(tabla_evidencias(evidencias_vista), use_container_width=True, hide_index=True)
+else:
+    st.info("No hay evidencias guardadas en este filtro.")

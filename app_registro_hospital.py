@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from functools import lru_cache
 from html import escape
+from io import BytesIO
 import json
 import os
 from pathlib import Path
@@ -18,12 +19,27 @@ from zoneinfo import ZoneInfo
 BASE_DIR = Path(__file__).resolve().parent
 DATA_FILE = BASE_DIR / "historial_registros.csv"
 STATE_FILE = BASE_DIR / "estados_dia.csv"
+EVIDENCE_FILE = BASE_DIR / "evidencias_registros.csv"
 BACKUP_DIR = BASE_DIR / "copias_seguridad"
+EVIDENCE_DIR = BASE_DIR / "evidencias"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 COLOMBIA_TZ = ZoneInfo("America/Bogota")
 TODOS_LOS_PERIODOS = "Todos los periodos"
 COLUMNAS_ARCHIVO = ["fecha", "hora", "tipo", "detalle", "periodo", "turno", "jornada"]
 COLUMNAS_ESTADOS = ["fecha", "estado", "detalle", "periodo"]
+COLUMNAS_EVIDENCIAS = [
+    "registro_clave",
+    "fecha",
+    "hora",
+    "tipo",
+    "detalle",
+    "periodo",
+    "turno",
+    "jornada",
+    "ubicacion_texto",
+    "foto_nombre",
+    "foto_url",
+]
 ESTADOS_DIA = [
     "12h dia",
     "12h noche",
@@ -129,6 +145,21 @@ class EstadoDia:
     @property
     def fecha_base(self) -> date:
         return datetime.strptime(self.fecha, "%Y-%m-%d").date()
+
+
+@dataclass
+class EvidenciaRegistro:
+    registro_clave: str
+    fecha: str
+    hora: str
+    tipo: str
+    detalle: str
+    periodo: str
+    turno: str
+    jornada: str
+    ubicacion_texto: str
+    foto_nombre: str
+    foto_url: str
 
 
 def ahora_colombia() -> datetime:
@@ -268,6 +299,7 @@ def construir_fecha_hora_manual(fecha: date | datetime | str, hora: time | str) 
 
 def asegurar_archivo():
     BACKUP_DIR.mkdir(exist_ok=True)
+    EVIDENCE_DIR.mkdir(exist_ok=True)
     if usar_google_sheets():
         if not _hojas_google_listas():
             asegurar_hojas_google()
@@ -289,6 +321,17 @@ def asegurar_archivo_estados():
         with STATE_FILE.open("w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(COLUMNAS_ESTADOS)
+
+
+def asegurar_archivo_evidencias():
+    if usar_google_sheets():
+        if not _hojas_google_listas():
+            asegurar_hojas_google()
+        return
+    if not EVIDENCE_FILE.exists():
+        with EVIDENCE_FILE.open("w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow(COLUMNAS_EVIDENCIAS)
 
 
 def usar_google_sheets() -> bool:
@@ -372,13 +415,14 @@ def _obtener_worksheet(nombre: str, headers: list[str]):
 def asegurar_hojas_google():
     _obtener_worksheet("movimientos", COLUMNAS_ARCHIVO)
     _obtener_worksheet("estados", COLUMNAS_ESTADOS)
+    _obtener_worksheet("evidencias", COLUMNAS_EVIDENCIAS)
 
 
 def _hojas_google_listas() -> bool:
     if not usar_google_sheets():
         return False
     sheet_id = _normalizar_google_sheet_id(os.environ["GOOGLE_SHEET_ID"])
-    requeridas = {(sheet_id, "movimientos"), (sheet_id, "estados")}
+    requeridas = {(sheet_id, "movimientos"), (sheet_id, "estados"), (sheet_id, "evidencias")}
     return requeridas.issubset(GOOGLE_WORKSHEETS_INICIALIZADAS) and requeridas.issubset(set(GOOGLE_WORKSHEET_CACHE))
 
 
@@ -399,6 +443,72 @@ def _reescribir_worksheet(hoja, headers: list[str], filas: list[list[str]]):
     valores = [headers, *filas]
     _google_con_reintento(hoja.clear)
     _google_con_reintento(hoja.update, range_name="A1", values=valores)
+
+
+def clave_registro(registro: Registro) -> str:
+    return " | ".join(
+        [
+            registro.fecha,
+            registro.hora,
+            registro.tipo,
+            registro.turno,
+            registro.jornada,
+            registro.detalle,
+        ]
+    )
+
+
+def _drive_service():
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+
+    credenciales = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+    scopes = ["https://www.googleapis.com/auth/drive"]
+    credentials = service_account.Credentials.from_service_account_info(credenciales, scopes=scopes)
+    return build("drive", "v3", credentials=credentials, cache_discovery=False)
+
+
+def guardar_foto_evidencia(nombre_base: str, foto_bytes: bytes) -> tuple[str, str]:
+    nombre_archivo = f"{nombre_base}.jpg"
+
+    try:
+        from PIL import Image
+        from googleapiclient.http import MediaIoBaseUpload
+
+        imagen = Image.open(BytesIO(foto_bytes)).convert("RGB")
+        imagen.thumbnail((1280, 1280))
+        salida = BytesIO()
+        imagen.save(salida, format="JPEG", quality=82, optimize=True)
+        salida.seek(0)
+
+        if usar_google_sheets():
+            servicio = _drive_service()
+            metadata = {"name": nombre_archivo}
+            carpeta_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip()
+            if carpeta_id:
+                metadata["parents"] = [carpeta_id]
+            media = MediaIoBaseUpload(salida, mimetype="image/jpeg", resumable=False)
+            archivo = (
+                servicio.files()
+                .create(body=metadata, media_body=media, fields="id, webViewLink")
+                .execute()
+            )
+            servicio.permissions().create(
+                fileId=archivo["id"],
+                body={"type": "anyone", "role": "reader"},
+            ).execute()
+            foto_url = archivo.get("webViewLink") or f"https://drive.google.com/file/d/{archivo['id']}/view"
+            return nombre_archivo, foto_url
+
+        EVIDENCE_DIR.mkdir(exist_ok=True)
+        destino = EVIDENCE_DIR / nombre_archivo
+        destino.write_bytes(salida.getvalue())
+        return nombre_archivo, str(destino)
+    except Exception:
+        EVIDENCE_DIR.mkdir(exist_ok=True)
+        destino = EVIDENCE_DIR / nombre_archivo
+        destino.write_bytes(foto_bytes)
+        return nombre_archivo, str(destino)
 
 
 def normalizar_archivo_existente():
@@ -625,6 +735,131 @@ def leer_registros() -> list[Registro]:
 
     registros.sort(key=lambda item: item.fecha_hora)
     return registros
+
+
+def guardar_evidencia_registro(
+    registro: Registro,
+    ubicacion_texto: str = "",
+    foto_bytes: bytes | None = None,
+) -> EvidenciaRegistro | None:
+    ubicacion_texto = (ubicacion_texto or "").strip()
+    foto_nombre = ""
+    foto_url = ""
+
+    if not ubicacion_texto and not foto_bytes:
+        return None
+
+    if foto_bytes:
+        base_nombre = (
+            f"evidencia_{registro.fecha}_{registro.hora.replace(':', '')}_{registro.tipo}_{registro.turno}"
+        )
+        foto_nombre, foto_url = guardar_foto_evidencia(base_nombre, foto_bytes)
+
+    evidencia = EvidenciaRegistro(
+        registro_clave=clave_registro(registro),
+        fecha=registro.fecha,
+        hora=registro.hora,
+        tipo=registro.tipo,
+        detalle=registro.detalle,
+        periodo=registro.periodo,
+        turno=registro.turno,
+        jornada=registro.jornada,
+        ubicacion_texto=ubicacion_texto,
+        foto_nombre=foto_nombre,
+        foto_url=foto_url,
+    )
+
+    asegurar_archivo_evidencias()
+    if usar_google_sheets():
+        hoja = _obtener_worksheet("evidencias", COLUMNAS_EVIDENCIAS)
+        _google_con_reintento(
+            hoja.append_row,
+            [
+                evidencia.registro_clave,
+                evidencia.fecha,
+                evidencia.hora,
+                evidencia.tipo,
+                evidencia.detalle,
+                evidencia.periodo,
+                evidencia.turno,
+                evidencia.jornada,
+                evidencia.ubicacion_texto,
+                evidencia.foto_nombre,
+                evidencia.foto_url,
+            ],
+        )
+        return evidencia
+
+    with EVIDENCE_FILE.open("a", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(
+            [
+                evidencia.registro_clave,
+                evidencia.fecha,
+                evidencia.hora,
+                evidencia.tipo,
+                evidencia.detalle,
+                evidencia.periodo,
+                evidencia.turno,
+                evidencia.jornada,
+                evidencia.ubicacion_texto,
+                evidencia.foto_nombre,
+                evidencia.foto_url,
+            ]
+        )
+    return evidencia
+
+
+def leer_evidencias() -> list[EvidenciaRegistro]:
+    asegurar_archivo_evidencias()
+    evidencias: list[EvidenciaRegistro] = []
+
+    if usar_google_sheets():
+        hoja = _obtener_worksheet("evidencias", COLUMNAS_EVIDENCIAS)
+        filas = _google_con_reintento(hoja.get_all_records)
+        for row in filas:
+            clave = str(row.get("registro_clave", "")).strip()
+            if not clave:
+                continue
+            evidencias.append(
+                EvidenciaRegistro(
+                    registro_clave=clave,
+                    fecha=str(row.get("fecha", "")).strip(),
+                    hora=str(row.get("hora", "")).strip(),
+                    tipo=str(row.get("tipo", "")).strip(),
+                    detalle=str(row.get("detalle", "")).strip(),
+                    periodo=str(row.get("periodo", "")).strip(),
+                    turno=str(row.get("turno", "")).strip(),
+                    jornada=str(row.get("jornada", "")).strip(),
+                    ubicacion_texto=str(row.get("ubicacion_texto", "")).strip(),
+                    foto_nombre=str(row.get("foto_nombre", "")).strip(),
+                    foto_url=str(row.get("foto_url", "")).strip(),
+                )
+            )
+        return evidencias
+
+    with EVIDENCE_FILE.open("r", newline="", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            clave = row.get("registro_clave", "").strip()
+            if not clave:
+                continue
+            evidencias.append(
+                EvidenciaRegistro(
+                    registro_clave=clave,
+                    fecha=row.get("fecha", "").strip(),
+                    hora=row.get("hora", "").strip(),
+                    tipo=row.get("tipo", "").strip(),
+                    detalle=row.get("detalle", "").strip(),
+                    periodo=row.get("periodo", "").strip(),
+                    turno=row.get("turno", "").strip(),
+                    jornada=row.get("jornada", "").strip(),
+                    ubicacion_texto=row.get("ubicacion_texto", "").strip(),
+                    foto_nombre=row.get("foto_nombre", "").strip(),
+                    foto_url=row.get("foto_url", "").strip(),
+                )
+            )
+    return evidencias
 
 
 def crear_copia_seguridad():
