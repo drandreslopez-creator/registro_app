@@ -218,7 +218,7 @@ def estados_filtrados(estados, periodo_filtro: str):
     return [estado for estado in estados if estado.periodo == periodo_filtro]
 
 
-def csv_bytes(registros) -> bytes:
+def csv_bytes(registros, filas_resumen=None) -> bytes:
     salida = StringIO()
     writer = csv.writer(salida)
     writer.writerow(["fecha", "hora", "tipo", "detalle", "periodo", "turno", "jornada"])
@@ -234,6 +234,18 @@ def csv_bytes(registros) -> bytes:
                 registro.jornada,
             ]
         )
+    if filas_resumen:
+        total = resumen_total_jornadas([item for item, _ in filas_resumen])
+        writer.writerow([])
+        writer.writerow(["RESUMEN"])
+        writer.writerow(["turnos_calculados", total.turno])
+        writer.writerow(["horas_programadas", horas_plan_total_texto(total.minutos_programados)])
+        writer.writerow(["acumulado_trabajado", minutos_a_texto(total.minutos_dentro)])
+        writer.writerow(["tiempo_dentro", minutos_a_texto(total.minutos_dentro)])
+        writer.writerow(["tiempo_fuera", minutos_a_texto(total.minutos_fuera)])
+        writer.writerow(["salida_permitida", minutos_a_texto(total.minutos_permitidos)])
+        writer.writerow(["exceso_total", minutos_a_texto(total.minutos_exceso)])
+        writer.writerow(["estado_total", total.estado])
     return salida.getvalue().encode("utf-8")
 
 
@@ -873,7 +885,7 @@ exp_1, exp_2 = st.columns(2)
 with exp_1:
     st.download_button(
         "Descargar CSV",
-        data=csv_bytes(registros_vista),
+        data=csv_bytes(registros_vista, filas_resumen),
         file_name="historial_filtrado.csv",
         mime="text/csv",
         use_container_width=True,
@@ -938,17 +950,13 @@ else:
     if meses_disponibles:
         mes_actual = ahora_colombia().strftime("%Y-%m")
         mes_por_defecto = mes_actual if mes_actual in meses_disponibles else meses_disponibles[-1]
-        col_doc_1, col_doc_2 = st.columns([2, 1], gap="small")
-        with col_doc_1:
-            mes_disponibilidad = st.selectbox(
-                "Mes calendario para disponibilidad",
-                options=meses_disponibles,
-                index=meses_disponibles.index(mes_por_defecto),
-                format_func=formatear_mes_calendario,
-                key="mes_disponibilidad_docx",
-            )
-        with col_doc_2:
-            st.caption("Este formato es por mes calendario, no por periodo 21 al 20.")
+        mes_disponibilidad = st.selectbox(
+            "Mes calendario para disponibilidad",
+            options=meses_disponibles,
+            index=meses_disponibles.index(mes_por_defecto),
+            format_func=formatear_mes_calendario,
+            key="mes_disponibilidad_docx",
+        )
 
         try:
             disponibilidad_docx = generar_disponibilidad_mensual_docx(estados, mes_disponibilidad)
