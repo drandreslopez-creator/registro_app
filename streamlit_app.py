@@ -77,6 +77,7 @@ from app_registro_hospital import (
     agrupar_resumenes_jornada,
     ahora_colombia,
     actualizar_estado_dia,
+    actualizar_registro,
     calcular_periodo,
     clave_registro,
     construir_fecha_hora_manual,
@@ -510,20 +511,79 @@ def render_borrado_estados(estados):
 def render_borrado_movimientos(registros):
     if "pendiente_borrar_movimiento" not in st.session_state:
         st.session_state["pendiente_borrar_movimiento"] = None
+    if "pendiente_editar_movimiento" not in st.session_state:
+        st.session_state["pendiente_editar_movimiento"] = None
 
     pendiente = st.session_state.get("pendiente_borrar_movimiento")
     if pendiente is not None and (pendiente < 0 or pendiente >= len(registros)):
         st.session_state["pendiente_borrar_movimiento"] = None
         pendiente = None
+    pendiente_edicion = st.session_state.get("pendiente_editar_movimiento")
+    if pendiente_edicion is not None and (pendiente_edicion < 0 or pendiente_edicion >= len(registros)):
+        st.session_state["pendiente_editar_movimiento"] = None
+        pendiente_edicion = None
 
     with st.expander("Eliminar movimiento registrado"):
         for indice, registro in enumerate(registros):
-            col_texto, col_boton = st.columns([0.9, 0.1], gap="small")
+            col_texto, col_editar, col_boton = st.columns([0.8, 0.1, 0.1], gap="small")
             with col_texto:
                 st.caption(etiqueta_registro(registro))
+            with col_editar:
+                if st.button("✎", key=f"editar_movimiento_{indice}", use_container_width=True):
+                    st.session_state["pendiente_editar_movimiento"] = indice
+                    st.session_state["pendiente_borrar_movimiento"] = None
+                    st.rerun()
             with col_boton:
                 if st.button("✕", key=f"borrar_movimiento_{indice}", use_container_width=True):
                     st.session_state["pendiente_borrar_movimiento"] = indice
+                    st.session_state["pendiente_editar_movimiento"] = None
+                    st.rerun()
+
+        pendiente_edicion = st.session_state.get("pendiente_editar_movimiento")
+        if pendiente_edicion is not None and 0 <= pendiente_edicion < len(registros):
+            registro = registros[pendiente_edicion]
+            st.info(f"Editar movimiento: {etiqueta_registro(registro)}")
+            with st.form("editar_movimiento_registrado"):
+                c1, c2 = st.columns(2, gap="small")
+                fecha_editada = c1.date_input(
+                    "Fecha",
+                    value=datetime.strptime(registro.fecha, "%Y-%m-%d").date(),
+                    format="DD-MM-YYYY",
+                )
+                hora_inicial = registro.hora.replace(":", "")
+                hora_editada = c2.text_input("Hora (HH:MM)", value=hora_inicial, key="hora_editar_movimiento")
+                c3, c4 = st.columns(2, gap="small")
+                tipo_editado = c3.selectbox(
+                    "Tipo",
+                    options=["entrada", "salida", "libre"],
+                    index=["entrada", "salida", "libre"].index(registro.tipo),
+                )
+                opciones_turno = ["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "libre"]
+                turno_base = registro.turno if registro.turno in opciones_turno else "12h dia"
+                turno_editado = c4.selectbox("Turno", options=opciones_turno, index=opciones_turno.index(turno_base))
+                detalle_editado = st.text_input("Detalle", value=registro.detalle)
+                col_guardar, col_cancelar = st.columns(2, gap="small")
+                guardar_edicion = col_guardar.form_submit_button("Guardar cambios", use_container_width=True)
+                cancelar_edicion = col_cancelar.form_submit_button("Cancelar", use_container_width=True)
+                if guardar_edicion:
+                    try:
+                        fecha_hora = construir_fecha_hora_manual(fecha_editada, hora_editada)
+                        turno_final = turno_editado
+                        detalle_final = detalle_editado.strip()
+                        if tipo_editado == "libre":
+                            turno_final = "libre"
+                            detalle_final = detalle_final or "Dia libre"
+                        elif turno_final == "libre":
+                            raise ValueError("Entrada o salida no pueden quedar con turno libre.")
+                        actualizar_registro(registro, fecha_hora, tipo_editado, turno_final, detalle_final)
+                        limpiar_cache_datos()
+                        st.session_state["pendiente_editar_movimiento"] = None
+                        st.success("Movimiento actualizado.")
+                        st.rerun()
+                    except ValueError as exc:
+                        st.error(str(exc))
+                if cancelar_edicion:
+                    st.session_state["pendiente_editar_movimiento"] = None
                     st.rerun()
 
         pendiente = st.session_state.get("pendiente_borrar_movimiento")

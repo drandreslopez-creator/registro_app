@@ -800,6 +800,82 @@ def guardar_registro_en_fecha(tipo: str, fecha_hora: datetime, turno: str, detal
     return registro
 
 
+def actualizar_registro(
+    registro_original: Registro,
+    fecha_hora: datetime,
+    tipo: str,
+    turno: str,
+    detalle: str = "",
+) -> Registro:
+    registros = leer_registros()
+    restantes: list[Registro] = []
+    encontrado = False
+    for registro in registros:
+        if not encontrado and registro == registro_original:
+            encontrado = True
+            continue
+        restantes.append(registro)
+
+    if not encontrado:
+        raise ValueError("No se encontró el movimiento original para editar.")
+
+    turno_normalizado = turno if turno in TURNOS else "sin definir"
+    validar_bloqueo_dia_libre(restantes, tipo, fecha_hora)
+    periodo = calcular_periodo(fecha_hora)
+    jornada = calcular_jornada(turno_normalizado, fecha_hora)
+    registro_actualizado = Registro(
+        fecha=fecha_hora.strftime("%Y-%m-%d"),
+        hora=fecha_hora.strftime("%H:%M"),
+        tipo=tipo,
+        detalle=detalle,
+        periodo=periodo,
+        turno=turno_normalizado,
+        jornada=jornada,
+    )
+
+    restantes.append(registro_actualizado)
+    restantes.sort(key=lambda item: item.fecha_hora)
+
+    if usar_google_sheets():
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("movimientos"), COLUMNAS_ARCHIVO)
+        _reescribir_worksheet(
+            hoja,
+            COLUMNAS_ARCHIVO,
+            [
+                [
+                    registro.fecha,
+                    registro.hora,
+                    registro.tipo,
+                    registro.detalle,
+                    registro.periodo,
+                    registro.turno,
+                    registro.jornada,
+                ]
+                for registro in restantes
+            ],
+        )
+    else:
+        with ruta_archivo_usuario(DATA_FILE).open("w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow(COLUMNAS_ARCHIVO)
+            for registro in restantes:
+                writer.writerow(
+                    [
+                        registro.fecha,
+                        registro.hora,
+                        registro.tipo,
+                        registro.detalle,
+                        registro.periodo,
+                        registro.turno,
+                        registro.jornada,
+                    ]
+                )
+        crear_copia_seguridad()
+
+    actualizar_evidencias_por_registro(registro_original, registro_actualizado)
+    return registro_actualizado
+
+
 def eliminar_registro(registro_objetivo: Registro) -> bool:
     registros = leer_registros()
     eliminado = False
@@ -1036,6 +1112,81 @@ def leer_evidencias() -> list[EvidenciaRegistro]:
                 )
             )
     return evidencias
+
+
+def actualizar_evidencias_por_registro(registro_original: Registro, registro_actualizado: Registro) -> int:
+    evidencias = leer_evidencias()
+    cambios = 0
+    actualizadas: list[EvidenciaRegistro] = []
+
+    for evidencia in evidencias:
+        if evidencia_corresponde_a_registro(evidencia, registro_original):
+            cambios += 1
+            actualizadas.append(
+                EvidenciaRegistro(
+                    registro_clave=clave_registro(registro_actualizado),
+                    fecha=registro_actualizado.fecha,
+                    hora=registro_actualizado.hora,
+                    tipo=registro_actualizado.tipo,
+                    detalle=registro_actualizado.detalle,
+                    periodo=registro_actualizado.periodo,
+                    turno=registro_actualizado.turno,
+                    jornada=registro_actualizado.jornada,
+                    ubicacion_texto=evidencia.ubicacion_texto,
+                    foto_nombre=evidencia.foto_nombre,
+                    foto_url=evidencia.foto_url,
+                )
+            )
+        else:
+            actualizadas.append(evidencia)
+
+    if cambios == 0:
+        return 0
+
+    if usar_google_sheets():
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("evidencias"), COLUMNAS_EVIDENCIAS)
+        _reescribir_worksheet(
+            hoja,
+            COLUMNAS_EVIDENCIAS,
+            [
+                [
+                    evidencia.registro_clave,
+                    evidencia.fecha,
+                    evidencia.hora,
+                    evidencia.tipo,
+                    evidencia.detalle,
+                    evidencia.periodo,
+                    evidencia.turno,
+                    evidencia.jornada,
+                    evidencia.ubicacion_texto,
+                    evidencia.foto_nombre,
+                    evidencia.foto_url,
+                ]
+                for evidencia in actualizadas
+            ],
+        )
+        return cambios
+
+    with ruta_archivo_usuario(EVIDENCE_FILE).open("w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(COLUMNAS_EVIDENCIAS)
+        for evidencia in actualizadas:
+            writer.writerow(
+                [
+                    evidencia.registro_clave,
+                    evidencia.fecha,
+                    evidencia.hora,
+                    evidencia.tipo,
+                    evidencia.detalle,
+                    evidencia.periodo,
+                    evidencia.turno,
+                    evidencia.jornada,
+                    evidencia.ubicacion_texto,
+                    evidencia.foto_nombre,
+                    evidencia.foto_url,
+                ]
+            )
+    return cambios
 
 
 def eliminar_evidencias_por_registro(registro: Registro) -> int:
