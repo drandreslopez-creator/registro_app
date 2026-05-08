@@ -446,7 +446,7 @@ def render_borrado_estados(estados):
         st.session_state["pendiente_editar_estado"] = None
         pendiente_edicion = None
 
-    with st.expander("Eliminar estado programado"):
+    with st.expander("Editar / Eliminar estado programado"):
         for indice, estado in enumerate(estados):
             col_texto, col_editar, col_boton = st.columns([0.8, 0.1, 0.1], gap="small")
             with col_texto:
@@ -523,7 +523,7 @@ def render_borrado_movimientos(registros):
         st.session_state["pendiente_editar_movimiento"] = None
         pendiente_edicion = None
 
-    with st.expander("Eliminar movimiento registrado"):
+    with st.expander("Editar / Eliminar movimiento registrado"):
         for indice, registro in enumerate(registros):
             col_texto, col_editar, col_boton = st.columns([0.8, 0.1, 0.1], gap="small")
             with col_texto:
