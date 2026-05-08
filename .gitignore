@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.DS_Store
+historial_registros.csv
+estados_dia.csv
+evidencias_registros.csv
+copias_seguridad/
+evidencias/
+*.json
