@@ -131,12 +131,17 @@ def seleccionar_usuario_inicial():
         <style>
         .selector-usuario {
           max-width: 720px;
-          margin: 3rem auto 1rem auto;
+          margin: 3rem auto 1.5rem auto;
           border: 1px solid rgba(255,255,255,0.08);
           border-radius: 22px;
-          padding: 1.4rem 1.2rem 1.1rem 1.2rem;
+          padding: 1.5rem 1.2rem 1.2rem 1.2rem;
           background: rgba(255,255,255,0.03);
           text-align: center;
+        }
+        .selector-usuario h1 {
+          margin: 0;
+          font-size: 2rem;
+          line-height: 1.15;
         }
         .selector-usuario-card {
           text-align: center;
@@ -152,8 +157,8 @@ def seleccionar_usuario_inicial():
     st.markdown(
         """
         <div class="selector-usuario">
-          <p><strong>Selecciona el usuario para entrar</strong></p>
-          <p style="opacity:.8; margin-top:.35rem;">Cada perfil guarda sus turnos, estados y evidencias por separado.</p>
+          <h1>REGISTRO PERSONAL DE INGRESO Y SALIDAS HRS</h1>
+          <p style="opacity:.88; margin-top:.55rem;">Por favor selecciona tu usuario.</p>
         </div>
         """,
         unsafe_allow_html=True,
