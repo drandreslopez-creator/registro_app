@@ -191,6 +191,15 @@ def limpiar_evidencia_pendiente():
     st.session_state["limpiar_evidencia_pendiente"] = True
 
 
+@st.cache_data(ttl=20, show_spinner=False)
+def cargar_datos_usuario(_usuario_cache_key: str):
+    return leer_registros(), leer_estados_dia(), leer_evidencias()
+
+
+def limpiar_cache_datos():
+    cargar_datos_usuario.clear()
+
+
 def registros_filtrados(registros, periodo_filtro: str):
     if periodo_filtro == TODOS_LOS_PERIODOS:
         return registros
@@ -470,6 +479,7 @@ def render_borrado_estados(estados):
                 if guardar_edicion:
                     try:
                         actualizar_estado_dia(estado, fecha_editada, estado_editado, detalle_editado)
+                        limpiar_cache_datos()
                         st.session_state["pendiente_editar_estado"] = None
                         st.success("Estado programado actualizado.")
                         st.rerun()
@@ -486,6 +496,7 @@ def render_borrado_estados(estados):
             with col_ok:
                 if st.button("Sí, eliminar", key="confirmar_borrar_estado", use_container_width=True):
                     if eliminar_estado_dia(estados[pendiente]):
+                        limpiar_cache_datos()
                         st.session_state["pendiente_borrar_estado"] = None
                         st.success("Estado programado eliminado.")
                         st.rerun()
@@ -522,6 +533,7 @@ def render_borrado_movimientos(registros):
             with col_ok:
                 if st.button("Sí, eliminar", key="confirmar_borrar_movimiento", use_container_width=True):
                     if eliminar_registro(registros[pendiente]):
+                        limpiar_cache_datos()
                         st.session_state["pendiente_borrar_movimiento"] = None
                         st.success("Movimiento eliminado.")
                         st.rerun()
@@ -632,6 +644,7 @@ with col_a:
             except Exception as exc:
                 st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
         limpiar_evidencia_pendiente()
+        limpiar_cache_datos()
         st.success(
             f"Entrada guardada: {formatear_fecha_visible(registro.fecha)} "
             f"{registro.hora} ({registro.turno})"
@@ -653,6 +666,7 @@ with col_a:
             except Exception as exc:
                 st.warning(f"El registro se guardo, pero la evidencia fotografica no se pudo subir: {exc}")
         limpiar_evidencia_pendiente()
+        limpiar_cache_datos()
         st.success(
             f"Salida guardada: {formatear_fecha_visible(registro.fecha)} "
             f"{registro.hora} ({registro.turno})"
@@ -672,6 +686,7 @@ with col_a:
         if guardar_estado:
             try:
                 estado = guardar_estado_dia(estado_fecha, estado_tipo, estado_detalle)
+                limpiar_cache_datos()
                 st.success(f"Estado programado guardado: {formatear_fecha_visible(estado.fecha)} ({estado.estado})")
             except ValueError as exc:
                 st.error(str(exc))
@@ -720,6 +735,7 @@ with col_b:
                 turno=turno,
                 detalle=detalle,
             )
+            limpiar_cache_datos()
             st.session_state.limpiar_hora_manual = True
             st.session_state["mensaje_manual_ok"] = (
                 f"Registro manual guardado: {registro.tipo.capitalize()} "
@@ -731,13 +747,11 @@ with col_b:
             st.error(str(exc))
 
 try:
-    registros = leer_registros()
-    estados = leer_estados_dia()
-    evidencias = leer_evidencias()
+    registros, estados, evidencias = cargar_datos_usuario(usuario_label)
 except Exception as exc:
     st.error(
         "No se pudo abrir la base de datos de Google Sheets. "
-        "Revisa la clave privada actual de la cuenta de servicio en Streamlit Secrets."
+        "Si acabas de hacer varios cambios seguidos, espera unos segundos y vuelve a intentar."
     )
     st.caption(str(exc))
     st.stop()
