@@ -121,8 +121,8 @@ PERFILES_USUARIO = {
 }
 USUARIOS_APP = list(PERFILES_USUARIO.keys())
 FOTOS_USUARIO = {
-    "andres_pediatra": "/Users/apple/Downloads/liftapp.PNG",
-    "lina_neonato": "/Users/apple/Downloads/5bae64c-ff37-4af4-8368-da0e22d955dd.JPG",
+    "andres_pediatra": str(Path(__file__).resolve().parent / "assets" / "usuarios" / "andres_pediatra.png"),
+    "lina_neonato": str(Path(__file__).resolve().parent / "assets" / "usuarios" / "lina_neonato.jpg"),
 }
 
 def seleccionar_usuario_inicial():
