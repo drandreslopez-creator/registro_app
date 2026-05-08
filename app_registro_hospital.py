@@ -1161,6 +1161,83 @@ def guardar_estado_dia(fecha: date | str, estado: str, detalle: str = "") -> Est
     return estado_dia
 
 
+def actualizar_estado_dia(
+    estado_original: EstadoDia,
+    fecha: date | str,
+    estado: str,
+    detalle: str = "",
+) -> EstadoDia:
+    asegurar_archivo_estados()
+    if estado not in ESTADOS_DIA:
+        raise ValueError("Estado del dia invalido.")
+
+    if isinstance(fecha, date):
+        fecha_texto = fecha.strftime("%Y-%m-%d")
+        fecha_base = fecha
+    elif isinstance(fecha, str):
+        fecha_texto = fecha.strip()
+        fecha_base = datetime.strptime(fecha_texto, "%Y-%m-%d").date()
+    else:
+        raise ValueError("Fecha del estado invalida.")
+
+    periodo = calcular_periodo(datetime.combine(fecha_base, time(0, 0)).replace(tzinfo=COLOMBIA_TZ))
+    estado_actualizado = EstadoDia(
+        fecha=fecha_texto,
+        estado=estado,
+        detalle=detalle.strip(),
+        periodo=periodo,
+    )
+
+    estados = leer_estados_dia()
+    actualizados: list[EstadoDia] = []
+    reemplazado = False
+    for item in estados:
+        if (
+            not reemplazado
+            and item.fecha == estado_original.fecha
+            and item.estado == estado_original.estado
+            and item.detalle == estado_original.detalle
+            and item.periodo == estado_original.periodo
+        ):
+            actualizados.append(estado_actualizado)
+            reemplazado = True
+        else:
+            actualizados.append(item)
+
+    if not reemplazado:
+        raise ValueError("No se encontró el estado original para editar.")
+
+    estados_sin_duplicados: list[EstadoDia] = []
+    for item in actualizados:
+        if not any(
+            existente.fecha == item.fecha
+            and existente.estado == item.estado
+            and existente.detalle == item.detalle
+            and existente.periodo == item.periodo
+            for existente in estados_sin_duplicados
+        ):
+            estados_sin_duplicados.append(item)
+
+    estados_sin_duplicados.sort(key=lambda item: item.fecha)
+
+    if usar_google_sheets():
+        hoja = _obtener_worksheet(nombre_worksheet_usuario("estados"), COLUMNAS_ESTADOS)
+        _reescribir_worksheet(
+            hoja,
+            COLUMNAS_ESTADOS,
+            [[item.fecha, item.estado, item.detalle, item.periodo] for item in estados_sin_duplicados],
+        )
+        return estado_actualizado
+
+    with ruta_archivo_usuario(STATE_FILE).open("w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(COLUMNAS_ESTADOS)
+        for item in estados_sin_duplicados:
+            writer.writerow([item.fecha, item.estado, item.detalle, item.periodo])
+
+    return estado_actualizado
+
+
 def eliminar_estado_dia(estado_objetivo: EstadoDia | date | str) -> bool:
     estados = leer_estados_dia()
 

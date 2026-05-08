@@ -76,6 +76,7 @@ from app_registro_hospital import (
     USUARIO_PREDETERMINADO,
     agrupar_resumenes_jornada,
     ahora_colombia,
+    actualizar_estado_dia,
     calcular_periodo,
     clave_registro,
     construir_fecha_hora_manual,
@@ -423,20 +424,59 @@ def etiqueta_estado(estado):
 def render_borrado_estados(estados):
     if "pendiente_borrar_estado" not in st.session_state:
         st.session_state["pendiente_borrar_estado"] = None
+    if "pendiente_editar_estado" not in st.session_state:
+        st.session_state["pendiente_editar_estado"] = None
 
     pendiente = st.session_state.get("pendiente_borrar_estado")
     if pendiente is not None and (pendiente < 0 or pendiente >= len(estados)):
         st.session_state["pendiente_borrar_estado"] = None
         pendiente = None
+    pendiente_edicion = st.session_state.get("pendiente_editar_estado")
+    if pendiente_edicion is not None and (pendiente_edicion < 0 or pendiente_edicion >= len(estados)):
+        st.session_state["pendiente_editar_estado"] = None
+        pendiente_edicion = None
 
     with st.expander("Eliminar estado programado"):
         for indice, estado in enumerate(estados):
-            col_texto, col_boton = st.columns([0.9, 0.1], gap="small")
+            col_texto, col_editar, col_boton = st.columns([0.8, 0.1, 0.1], gap="small")
             with col_texto:
                 st.caption(etiqueta_estado(estado))
+            with col_editar:
+                if st.button("✎", key=f"editar_estado_{indice}", use_container_width=True):
+                    st.session_state["pendiente_editar_estado"] = indice
+                    st.session_state["pendiente_borrar_estado"] = None
+                    st.rerun()
             with col_boton:
                 if st.button("✕", key=f"borrar_estado_{indice}", use_container_width=True):
                     st.session_state["pendiente_borrar_estado"] = indice
+                    st.session_state["pendiente_editar_estado"] = None
+                    st.rerun()
+
+        pendiente_edicion = st.session_state.get("pendiente_editar_estado")
+        if pendiente_edicion is not None and 0 <= pendiente_edicion < len(estados):
+            estado = estados[pendiente_edicion]
+            st.info(f"Editar estado: {etiqueta_estado(estado)}")
+            with st.form("editar_estado_programado"):
+                fecha_editada = st.date_input(
+                    "Fecha",
+                    value=datetime.strptime(estado.fecha, "%Y-%m-%d").date(),
+                    format="DD-MM-YYYY",
+                )
+                estado_editado = st.selectbox("Estado", options=ESTADOS_DIA, index=ESTADOS_DIA.index(estado.estado))
+                detalle_editado = st.text_input("Detalle", value=estado.detalle)
+                col_guardar, col_cancelar = st.columns(2, gap="small")
+                guardar_edicion = col_guardar.form_submit_button("Guardar cambios", use_container_width=True)
+                cancelar_edicion = col_cancelar.form_submit_button("Cancelar", use_container_width=True)
+                if guardar_edicion:
+                    try:
+                        actualizar_estado_dia(estado, fecha_editada, estado_editado, detalle_editado)
+                        st.session_state["pendiente_editar_estado"] = None
+                        st.success("Estado programado actualizado.")
+                        st.rerun()
+                    except ValueError as exc:
+                        st.error(str(exc))
+                if cancelar_edicion:
+                    st.session_state["pendiente_editar_estado"] = None
                     st.rerun()
 
         pendiente = st.session_state.get("pendiente_borrar_estado")
