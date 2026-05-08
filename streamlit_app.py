@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime, timedelta
 from io import BytesIO, StringIO
 import json
@@ -125,6 +126,18 @@ FOTOS_USUARIO = {
     "lina_neonato": str(Path(__file__).resolve().parent / "assets" / "usuarios" / "lina_neonato.jpg"),
 }
 
+
+def imagen_usuario_html(path: str, width: int = 120) -> str:
+    ruta = Path(path)
+    if not ruta.exists():
+        return ""
+    mime = "image/png" if ruta.suffix.lower() == ".png" else "image/jpeg"
+    contenido = base64.b64encode(ruta.read_bytes()).decode("utf-8")
+    return (
+        f'<img src="data:{mime};base64,{contenido}" '
+        f'style="width:{width}px; max-width:100%; border-radius:16px; display:block; margin:0 auto 0.75rem auto;" />'
+    )
+
 def seleccionar_usuario_inicial():
     st.markdown(
         """
@@ -171,7 +184,7 @@ def seleccionar_usuario_inicial():
         st.markdown('<div class="selector-usuario-card">', unsafe_allow_html=True)
         foto_andres = FOTOS_USUARIO.get("andres_pediatra")
         if foto_andres and Path(foto_andres).exists():
-            st.image(foto_andres, width=120)
+            st.markdown(imagen_usuario_html(foto_andres, width=120), unsafe_allow_html=True)
         if st.button("andres_pediatra", use_container_width=True):
             st.session_state["usuario_seleccionado"] = "andres_pediatra"
             st.rerun()
@@ -180,7 +193,7 @@ def seleccionar_usuario_inicial():
         st.markdown('<div class="selector-usuario-card">', unsafe_allow_html=True)
         foto_lina = FOTOS_USUARIO.get("lina_neonato")
         if foto_lina and Path(foto_lina).exists():
-            st.image(foto_lina, width=120)
+            st.markdown(imagen_usuario_html(foto_lina, width=120), unsafe_allow_html=True)
         if st.button("lina_neonato", use_container_width=True):
             st.session_state["usuario_seleccionado"] = "lina_neonato"
             st.rerun()
