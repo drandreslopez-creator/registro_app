@@ -36,6 +36,11 @@ def configurar_google_desde_secrets():
     elif "GOOGLE_SHEET_URL" in secrets:
         os.environ["GOOGLE_SHEET_ID"] = str(secrets["GOOGLE_SHEET_URL"])
 
+    if "google_drive_folder_id" in secrets:
+        os.environ["GOOGLE_DRIVE_FOLDER_ID"] = str(secrets["google_drive_folder_id"])
+    elif "GOOGLE_DRIVE_FOLDER_ID" in secrets:
+        os.environ["GOOGLE_DRIVE_FOLDER_ID"] = str(secrets["GOOGLE_DRIVE_FOLDER_ID"])
+
 
 configurar_google_desde_secrets()
 
@@ -354,6 +359,8 @@ if st.session_state.get("limpiar_evidencia_pendiente"):
 
 with st.expander("Evidencia opcional para el proximo registro"):
     st.caption("Puedes adjuntar una foto y una referencia de ubicacion para dejar soporte adicional.")
+    if not os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "").strip():
+        st.warning("Las fotos aun no estan configuradas para guardarse en Google Drive. Falta el ID de carpeta.")
     st.text_input(
         "Ubicacion / referencia",
         key="evidencia_ubicacion",
