@@ -384,7 +384,7 @@ def tabla_evidencias(evidencias):
             "Tipo": evidencia.tipo.capitalize(),
             "Turno": evidencia.turno,
             "Observación": evidencia.ubicacion_texto or "-",
-            "Foto": "Ver foto" if (evidencia.foto_url or evidencia.foto_nombre) else "Sin foto",
+            "Foto": evidencia.foto_url or "",
         }
         for evidencia in evidencias
     ]
@@ -849,7 +849,17 @@ if registros_vista:
 
 st.subheader("Evidencias registradas")
 if evidencias_vista:
-    st.dataframe(tabla_evidencias(evidencias_vista), use_container_width=True, hide_index=True)
+    st.dataframe(
+        tabla_evidencias(evidencias_vista),
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Foto": st.column_config.LinkColumn(
+                "Foto",
+                display_text="Ver foto",
+            )
+        },
+    )
     render_galeria_evidencias(evidencias_vista)
 else:
     st.info("No hay evidencias guardadas en este filtro.")
