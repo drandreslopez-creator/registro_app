@@ -1619,6 +1619,30 @@ def _expandir_servicio_disponibilidad(detalle: str) -> str:
     return texto
 
 
+def desglosar_servicios_estado(estado: str, detalle: str) -> list[tuple[str, float, int]]:
+    minutos = TURNOS.get(estado, TURNOS["sin definir"])["duracion_minutos"]
+    detalle_limpio = (detalle or "").strip()
+    detalle_mayus = detalle_limpio.upper()
+    tokens_raw = {
+        token
+        for token in re.split(r"[^A-ZÁÉÍÓÚÜÑ]+", detalle_mayus)
+        if token
+    }
+    servicio_base = _expandir_servicio_disponibilidad(detalle_limpio) if detalle_limpio else "Sin detalle"
+
+    if estado == "12h noche":
+        if "UCIN" not in tokens_raw and (
+            {"URG", "HX"} & tokens_raw
+            or detalle_mayus in {"URG", "HX", "URG/HX", "HX/URG", ""}
+        ):
+            return [
+                ("URGENCIAS", 0.5, minutos // 2),
+                ("HOSPITALIZACIÓN", 0.5, minutos // 2),
+            ]
+
+    return [(servicio_base, 1.0, minutos)]
+
+
 def descripcion_disponibilidad_estado(estado: str, detalle: str) -> str:
     detalle_limpio = detalle.strip()
     if not detalle_limpio:

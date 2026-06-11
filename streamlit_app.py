@@ -82,6 +82,7 @@ from app_registro_hospital import (
     calcular_periodo,
     clave_registro,
     construir_fecha_hora_manual,
+    desglosar_servicios_estado,
     evidencia_corresponde_a_registro,
     eliminar_estado_dia,
     eliminar_registro,
@@ -450,16 +451,16 @@ def resumen_estados_programados(estados):
         minutos = TURNOS.get(estado.estado, TURNOS["sin definir"])["duracion_minutos"]
         total_minutos += minutos
 
-        servicio = (estado.detalle or "Sin detalle").strip().upper()
-        if servicio not in por_servicio:
-            por_servicio[servicio] = {"dias": 0, "minutos": 0}
-        por_servicio[servicio]["dias"] += 1
-        por_servicio[servicio]["minutos"] += minutos
+        for servicio, dias, minutos_servicio in desglosar_servicios_estado(estado.estado, estado.detalle):
+            if servicio not in por_servicio:
+                por_servicio[servicio] = {"dias": 0.0, "minutos": 0}
+            por_servicio[servicio]["dias"] += dias
+            por_servicio[servicio]["minutos"] += minutos_servicio
 
     filas_servicio = [
         {
             "Servicio": servicio,
-            "Dias": datos["dias"],
+            "Dias": int(datos["dias"]) if float(datos["dias"]).is_integer() else datos["dias"],
             "Horas programadas": horas_plan_total_texto(datos["minutos"]),
         }
         for servicio, datos in sorted(
