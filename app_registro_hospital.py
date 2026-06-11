@@ -49,7 +49,6 @@ ESTADOS_DIA = [
     "5h manana",
     "6h manana",
     "6h tarde",
-    "3h extra noche",
     "libre",
     "libre despues de noche",
     "sin definir",
@@ -85,12 +84,6 @@ TURNOS = {
         "inicio": (13, 0),
         "fin": (19, 0),
     },
-    "3h extra noche": {
-        "duracion_minutos": 3 * 60,
-        "salida_permitida_minutos": 0,
-        "inicio": (19, 0),
-        "fin": (22, 0),
-    },
     "libre": {
         "duracion_minutos": 0,
         "salida_permitida_minutos": 0,
@@ -104,7 +97,7 @@ TURNOS = {
         "fin": None,
     },
 }
-ESTADOS_CON_TURNO = {"12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "3h extra noche"}
+ESTADOS_CON_TURNO = {"12h dia", "12h noche", "5h manana", "6h manana", "6h tarde"}
 
 tk = None
 filedialog = None
@@ -1586,7 +1579,6 @@ def _rango_turno_disponibilidad(estado: str) -> str:
         "5h manana": "7:00 a.m. - 12:00 p.m.",
         "6h manana": "7:00 a.m. - 1:00 p.m.",
         "6h tarde": "1:00 p.m. - 7:00 p.m.",
-        "3h extra noche": "7:00 p.m. - 10:00 p.m.",
     }
     return rangos.get(estado, "")
 
@@ -1598,7 +1590,6 @@ def _sufijo_turno_disponibilidad(estado: str) -> str:
         "5h manana": "MAÑANA",
         "6h manana": "MAÑANA",
         "6h tarde": "TARDE",
-        "3h extra noche": "EXTRA NOCHE",
     }
     return sufijos.get(estado, estado.upper())
 
@@ -1628,7 +1619,6 @@ def descripcion_disponibilidad_estado(estado: str, detalle: str) -> str:
             "5h manana": "TURNO MAÑANA",
             "6h manana": "TURNO MAÑANA",
             "6h tarde": "TURNO TARDE",
-            "3h extra noche": "TURNO EXTRA NOCHE",
         }.get(estado, estado.upper())
 
     texto = _expandir_servicio_disponibilidad(detalle_limpio)
@@ -1766,7 +1756,7 @@ def periodos_combinados(registros: list[Registro], estados: list[EstadoDia]) -> 
 def agrupar_resumenes_jornada(registros: list[Registro]) -> list[ResumenJornada]:
     grupos: dict[tuple[str, str], list[Registro]] = defaultdict(list)
     for registro in registros:
-        if registro.turno not in {"12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "3h extra noche"}:
+        if registro.turno not in {"12h dia", "12h noche", "5h manana", "6h manana", "6h tarde"}:
             continue
         grupos[(registro.turno, registro.jornada)].append(registro)
 
@@ -1861,13 +1851,12 @@ def _orden_estado_turno(valor: str) -> int:
         "5h manana": 0,
         "6h manana": 1,
         "6h tarde": 2,
-        "3h extra noche": 3,
-        "12h dia": 4,
-        "12h noche": 5,
-        "libre despues de noche": 6,
-        "libre": 7,
-        "sin definir": 8,
-        "sin programar": 9,
+        "12h dia": 3,
+        "12h noche": 4,
+        "libre despues de noche": 5,
+        "libre": 6,
+        "sin definir": 7,
+        "sin programar": 8,
     }
     return orden.get(valor, 99)
 
