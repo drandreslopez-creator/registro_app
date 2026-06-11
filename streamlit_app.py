@@ -651,7 +651,7 @@ def render_borrado_movimientos(registros):
                     options=["entrada", "salida", "libre"],
                     index=["entrada", "salida", "libre"].index(registro.tipo),
                 )
-                opciones_turno = ["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "libre"]
+                opciones_turno = ["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "3h extra noche", "libre"]
                 turno_base = registro.turno if registro.turno in opciones_turno else "12h dia"
                 turno_editado = c4.selectbox("Turno", options=opciones_turno, index=opciones_turno.index(turno_base))
                 detalle_editado = st.text_input("Detalle", value=registro.detalle)
@@ -740,7 +740,7 @@ col_a, col_b = st.columns([1, 1], gap="small")
 
 with col_a:
     st.subheader("Registro rápido")
-    opciones_turno_rapido = ["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde"]
+    opciones_turno_rapido = ["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "3h extra noche"]
     turno_rapido = st.selectbox(
         "Turno actual",
         options=opciones_turno_rapido,
@@ -831,7 +831,7 @@ with col_a:
         estado_fecha = st.date_input("Fecha a programar", value=datetime.now().date(), format="DD-MM-YYYY")
         estado_tipo = st.selectbox(
             "Estado programado",
-            options=["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "libre", "libre despues de noche"],
+            options=["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "3h extra noche", "libre", "libre despues de noche"],
         )
         estado_detalle = st.text_input("Detalle del estado", value="", placeholder="Opcional")
         guardar_estado = st.form_submit_button("Guardar estado del día", use_container_width=True)
@@ -867,7 +867,7 @@ with col_b:
 
     c3, c4 = st.columns(2)
     manual_tipo = c3.selectbox("Tipo", options=["entrada", "salida", "libre"])
-    manual_turno = c4.selectbox("Turno", options=["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "libre"])
+    manual_turno = c4.selectbox("Turno", options=["12h dia", "12h noche", "5h manana", "6h manana", "6h tarde", "3h extra noche", "libre"])
     manual_detalle = st.text_input("Detalle", value="")
     guardar_manual = st.button("Guardar manual", use_container_width=True)
 
