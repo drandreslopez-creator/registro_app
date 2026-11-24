@@ -1,5 +1,6 @@
 import base64
 from datetime import datetime, timedelta
+from hmac import compare_digest
 from io import BytesIO, StringIO
 import json
 import os
@@ -1036,7 +1037,24 @@ else:
         )
 
         try:
-            disponibilidad_docx = generar_disponibilidad_mensual_docx(estados, mes_disponibilidad)
+            cc_rm = ""
+            if "plantilla" in perfil_disponibilidad:
+                try:
+                    numero = str(st.secrets.get("disponibilidad_andres_cc_rm", "")).strip()
+                    clave = str(st.secrets.get("disponibilidad_andres_clave", ""))
+                except StreamlitSecretNotFoundError:
+                    numero = clave = ""
+                if numero and clave:
+                    ingresada = st.text_input(
+                        "Clave para incluir CC y registro médico (opcional)", type="password"
+                    )
+                    if ingresada and compare_digest(ingresada.encode(), clave.encode()):
+                        cc_rm = numero
+                    elif ingresada:
+                        st.warning("La clave no coincide. La descarga se generará sin el número.")
+            disponibilidad_docx = generar_disponibilidad_mensual_docx(
+                estados, mes_disponibilidad, cc_rm=cc_rm
+            )
             st.download_button(
                 "Descargar disponibilidad mensual (.docx)",
                 data=disponibilidad_docx,

@@ -129,30 +129,8 @@ MESES_ES = [
 DIAS_SEMANA_ABREV_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 PERFILES_DISPONIBILIDAD = {
     "Andres": {
-        "ciudad": "Sogamoso",
-        "destinatarios": [
-            ("Doctores", False),
-            ("CAROLINA VARGAS JAIMES", True),
-            ("Líder de Pediatría", False),
-            ("ZULMA CRISTINA MONTAÑA MARTÍNEZ", True),
-            ("Subgerente Científica", False),
-            ("HOSPITAL REGIONAL DE SOGAMOSO E.S.E.", True),
-        ],
-        "saludo": "Cordial saludo,",
-        "introduccion": (
-            "Por medio del presente me permito presentar mi disponibilidad para el mes de "
-            "{mes} del presente año de la siguiente manera:"
-        ),
-        "cierre": "Quedo atento a los comentarios.",
-        "despedida": "Cordialmente,",
-        "firma": [
-            ("ANDRÉS ROBERTO LÓPEZ RUIZ", True),
-            ("Médico Especialista en Pediatría", False),
-            ("Contratista", False),
-            ("HOSPITAL REGIONAL DE SOGAMOSO E.S.E.", True),
-        ],
-    }
-    ,
+        "plantilla": BASE_DIR / "assets" / "disponibilidad_andres.docx",
+    },
     "Esposa": {
         "ciudad": "Sogamoso",
         "destinatarios": [
@@ -1689,7 +1667,9 @@ def nombre_archivo_disponibilidad(clave_mes: str) -> str:
     return f"disponibilidad_{mes_texto}_{anio}.docx"
 
 
-def generar_disponibilidad_mensual_docx(estados: list[EstadoDia], clave_mes: str) -> bytes:
+def generar_disponibilidad_mensual_docx(
+    estados: list[EstadoDia], clave_mes: str, *, cc_rm: str = ""
+) -> bytes:
     perfil = perfil_disponibilidad_actual()
     if perfil is None:
         raise ValueError("Este usuario todavía no tiene una plantilla de disponibilidad configurada.")
@@ -1699,8 +1679,8 @@ def generar_disponibilidad_mensual_docx(estados: list[EstadoDia], clave_mes: str
         raise ValueError("No hay turnos programados en ese mes para generar la disponibilidad.")
 
     try:
+        from copy import deepcopy
         from docx import Document
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
         from docx.shared import Cm, Pt
     except Exception as exc:
         raise RuntimeError("No se pudo cargar python-docx para generar el archivo Word.") from exc
@@ -1708,6 +1688,37 @@ def generar_disponibilidad_mensual_docx(estados: list[EstadoDia], clave_mes: str
     ahora = ahora_colombia()
     anio, mes = clave_mes.split("-")
     mes_texto = MESES_ES[int(mes) - 1]
+
+    if "plantilla" in perfil:
+        cc_rm = cc_rm.strip()
+        doc = Document(perfil["plantilla"])
+        campos = {
+            "{{FECHA}}": f"{ahora.day} de {MESES_ES[ahora.month - 1]} de {ahora.year}",
+            "{{MES}}": mes_texto,
+            "{{ANIO}}": anio,
+            "{{ANIO_INTRO}}": "del presente año" if int(anio) == ahora.year else f"de {anio}",
+            "{{CC_RM}}": cc_rm,
+        }
+        for parrafo in doc.paragraphs:
+            if parrafo.text == "CC - RM {{CC_RM}}" and not cc_rm:
+                parrafo._p.getparent().remove(parrafo._p)
+                continue
+            if parrafo.text == "{{TURNOS}}":
+                for linea in lineas:
+                    nuevo = deepcopy(parrafo._p)
+                    nuevo.xpath(".//w:t")[0].text = linea
+                    parrafo._p.addprevious(nuevo)
+                parrafo._p.getparent().remove(parrafo._p)
+                continue
+            for run in parrafo.runs:
+                texto = run.text
+                for campo, valor in campos.items():
+                    texto = texto.replace(campo, valor)
+                if texto != run.text:
+                    run.text = texto
+        salida = BytesIO()
+        doc.save(salida)
+        return salida.getvalue()
 
     doc = Document()
     section = doc.sections[0]
